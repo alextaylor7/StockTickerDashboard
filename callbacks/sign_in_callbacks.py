@@ -1,6 +1,5 @@
 import dash
-from dash import Input, Output, State, callback
-import json
+from dash import Input, Output, callback
 
 
 @callback(

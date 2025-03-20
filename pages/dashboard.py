@@ -1,10 +1,11 @@
 from dash import dcc, html, register_page, dash_table
 import plotly.graph_objects as go
+from constants import commodities
 
 register_page(__name__, path="/dashboard")
 
 # Stock data setup
-commodities = ["Gold", "Silver", "Bonds", "Oil", "Industrials", "Grain"]
+
 stock_prices = {commodity: 1.00 for commodity in commodities}
 
 # Initialize figure

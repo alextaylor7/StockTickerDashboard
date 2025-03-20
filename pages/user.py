@@ -1,10 +1,10 @@
 from dash import dcc, html, register_page, dash_table
 import callbacks.user_callbacks
+from constants import commodities, user_starting_balance
 
 # User stock data setup
-commodities = ["Gold", "Silver", "Bonds", "Oil", "Industrials", "Grain"]
 user_stocks = {commodity: 0 for commodity in commodities}
-user_balance = 5000
+user_balance = user_starting_balance
 stock_prices = {commodity: 1.00 for commodity in commodities}  # Default stock prices
 
 register_page(__name__, path="/user")

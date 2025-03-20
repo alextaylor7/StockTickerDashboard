@@ -2,9 +2,9 @@ import dash
 from dash import Input, Output, callback
 import random
 import plotly.graph_objects as go
+from constants import commodities
 
 # Stock data setup
-commodities = ["Gold", "Silver", "Bonds", "Oil", "Industrials", "Grain"]
 stock_prices = {commodity: 1.00 for commodity in commodities}
 
 
