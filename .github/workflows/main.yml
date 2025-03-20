@@ -33,6 +33,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OUTPUT_DETAILS: detailed
           OUTPUT_FORMAT: tap
+          LOG_LEVEL: DEBUG     # Enable debug mode for more verbose logs
 
       - name: Upload Linter Artifacts
         if: always()
