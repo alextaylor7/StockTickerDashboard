@@ -14,6 +14,7 @@ fig.add_trace(go.Bar(x=list(stock_prices.keys()), y=list(stock_prices.values()),
 fig.update_layout(yaxis=dict(range=[0, 2]), title="Stock Prices")
 
 layout = html.Div([
+        dcc.Store(id='_initial_load', data=True),
         html.H1("Stock Ticker Game", style={'text-align': 'center', 'margin': '10px 0'}),
 
         html.Div([
