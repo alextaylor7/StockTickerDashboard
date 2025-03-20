@@ -32,3 +32,11 @@ jobs:
           # To report GitHub Actions status checks
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OUTPUT_DETAILS: detailed
+          OUTPUT_FORMAT: tap
+
+      - name: Upload Linter Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: super-linter-output
+          path: super-linter-output/
