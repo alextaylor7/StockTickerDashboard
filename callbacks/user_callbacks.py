@@ -67,6 +67,7 @@ def _get_user_state_store():
     Input("sell-2000-btn", "n_clicks"),
     Input("sell-5000-btn", "n_clicks"),
     Input("add-cash-btn", "n_clicks"),
+    Input("remove-cash-btn", "n_clicks"),
     State("stock-select", "value"),
     State("cash-input", "value"),
 )
@@ -76,6 +77,7 @@ def handle_user_actions(
     buy500, buy1000, buy2000, buy5000,
     sell500, sell1000, sell2000, sell5000,
     add_cash_clicks,
+    remove_cash_clicks,
     stock, cash_amount,
 ):
     ctx = dash.callback_context
@@ -134,6 +136,18 @@ def handle_user_actions(
             else:
                 current_state["balance"] = round(current_state["balance"] + amount, 2)
                 message = f"Added ${amount:.2f} to your balance."
+    elif action_id == "remove-cash-btn":
+        if cash_amount is None:
+            message = "Enter a valid cash amount greater than 0."
+        else:
+            amount = int(float(cash_amount))
+            if amount <= 0:
+                message = "Enter a valid cash amount greater than 0."
+            elif current_state["balance"] < amount:
+                message = "Not enough balance to remove that amount."
+            else:
+                current_state["balance"] = round(current_state["balance"] - amount, 2)
+                message = f"Removed ${amount:.2f} from your balance."
     else:
         if stock is None:
             message = "Select a stock first."

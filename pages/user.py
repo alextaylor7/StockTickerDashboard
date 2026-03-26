@@ -35,26 +35,11 @@ layout = html.Div([
                          clearable=False, searchable=False),
 
             html.Div([
-                html.Div("Buy", style={'text-align': 'center', 'font-weight': 'bold'}),
-                html.Div("Sell", style={'text-align': 'center', 'font-weight': 'bold'})
+                html.Div("Sell", style={'text-align': 'center', 'font-weight': 'bold'}),
+                html.Div("Buy", style={'text-align': 'center', 'font-weight': 'bold'})
             ], style={'display': 'flex', 'justify-content': 'space-between', 'width': '100%', 'margin-bottom': '5px'}),
 
             html.Div([
-                html.Div([
-                    html.Button("500", id='buy-500-btn', n_clicks=0,
-                                style={'width': '100%', 'background-color': 'green', 'color': 'white',
-                                       'font-size': '18px', 'padding': '10px', 'margin-bottom': '5px'}),
-                    html.Button("1000", id='buy-1000-btn', n_clicks=0,
-                                style={'width': '100%', 'background-color': 'green', 'color': 'white',
-                                       'font-size': '18px', 'padding': '10px', 'margin-bottom': '5px'}),
-                    html.Button("2000", id='buy-2000-btn', n_clicks=0,
-                                style={'width': '100%', 'background-color': 'green', 'color': 'white',
-                                       'font-size': '18px', 'padding': '10px', 'margin-bottom': '5px'}),
-                    html.Button("5000", id='buy-5000-btn', n_clicks=0,
-                                style={'width': '100%', 'background-color': 'green', 'color': 'white',
-                                       'font-size': '18px', 'padding': '10px'})
-                ], style={'width': '48%'}),
-
                 html.Div([
                     html.Button("500", id='sell-500-btn', n_clicks=0,
                                 style={'width': '100%', 'background-color': 'red', 'color': 'white',
@@ -68,27 +53,80 @@ layout = html.Div([
                     html.Button("5000", id='sell-5000-btn', n_clicks=0,
                                 style={'width': '100%', 'background-color': 'red', 'color': 'white',
                                        'font-size': '18px', 'padding': '10px'})
+                ], style={'width': '48%'}),
+
+                html.Div([
+                    html.Button("500", id='buy-500-btn', n_clicks=0,
+                                style={'width': '100%', 'background-color': 'green', 'color': 'white',
+                                       'font-size': '18px', 'padding': '10px', 'margin-bottom': '5px'}),
+                    html.Button("1000", id='buy-1000-btn', n_clicks=0,
+                                style={'width': '100%', 'background-color': 'green', 'color': 'white',
+                                       'font-size': '18px', 'padding': '10px', 'margin-bottom': '5px'}),
+                    html.Button("2000", id='buy-2000-btn', n_clicks=0,
+                                style={'width': '100%', 'background-color': 'green', 'color': 'white',
+                                       'font-size': '18px', 'padding': '10px', 'margin-bottom': '5px'}),
+                    html.Button("5000", id='buy-5000-btn', n_clicks=0,
+                                style={'width': '100%', 'background-color': 'green', 'color': 'white',
+                                       'font-size': '18px', 'padding': '10px'})
                 ], style={'width': '48%'})
             ], style={'display': 'flex', 'justify-content': 'space-between', 'width': '100%', 'gap': '4%',
                       'margin': 'auto'}),
         ], style={'text-align': 'center', 'margin-top': '20px', 'width': '90%', 'margin': 'auto'}),
 
         html.Div([
+            html.Button(
+                "-",
+                id='remove-cash-btn',
+                n_clicks=0,
+                title='Remove cash',
+                style={
+                    'flex': '0 0 20%',
+                    'width': '20%',
+                    'box-sizing': 'border-box',
+                    'padding': '10px',
+                    'font-size': '20px',
+                    'font-weight': 'bold',
+                    'background-color': 'red',
+                    'color': 'white',
+                }
+            ),
             dcc.Input(
                 id='cash-input',
                 type='number',
                 placeholder='Enter cash amount',
                 min=0,
                 step=1,
-                style={'width': '70%', 'padding': '10px', 'font-size': '16px'}
+                style={
+                    'flex': '0 0 60%',
+                    'width': '60%',
+                    'min-width': '0',
+                    'box-sizing': 'border-box',
+                    'padding': '10px',
+                    'font-size': '16px',
+                }
             ),
             html.Button(
-                "Add Cash",
+                "+",
                 id='add-cash-btn',
                 n_clicks=0,
-                style={'width': '28%', 'margin-left': '2%', 'padding': '10px', 'font-size': '16px'}
-            )
-        ], style={'display': 'flex', 'width': '90%', 'margin': '15px auto 0 auto'}),
+                title='Add cash',
+                style={
+                    'flex': '0 0 20%',
+                    'width': '20%',
+                    'box-sizing': 'border-box',
+                    'padding': '10px',
+                    'font-size': '20px',
+                    'font-weight': 'bold',
+                    'background-color': 'green',
+                    'color': 'white',
+                }
+            ),
+        ], style={
+            'display': 'flex',
+            'width': '90%',
+            'margin': '15px auto 0 auto',
+            'align-items': 'stretch',
+        }),
 
         html.Div(id='transaction-message', style={'text-align': 'center', 'margin-top': '10px', 'font-size': '16px'}),
     ], style={'width': '90%', 'margin': 'auto', 'padding': '10px', 'display': 'flex', 'flex-direction': 'column',
