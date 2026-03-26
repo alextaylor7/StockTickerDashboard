@@ -1,5 +1,6 @@
 from dash import dcc, html, register_page, dash_table
 import plotly.graph_objects as go
+from dash.dash_table.Format import Format, Scheme
 from constants import commodities
 
 register_page(__name__, path="/dashboard")
@@ -21,7 +22,8 @@ layout = html.Div([
             dash_table.DataTable(
                 id='stock-table',
                 columns=[{"name": "Commodity", "id": "Commodity"},
-                         {"name": "Price", "id": "Price"}],
+                         {"name": "Price", "id": "Price", "type": "numeric",
+                          "format": Format(precision=2, scheme=Scheme.fixed)}],
                 data=[{"Commodity": k, "Price": v} for k, v in stock_prices.items()],
                 style_table={'width': '40%', 'height': '100%', 'display': 'inline-block', 'vertical-align': 'top'},
                 style_cell={'textAlign': 'center', 'fontSize': '16px', 'padding': '10px'},
@@ -42,7 +44,7 @@ layout = html.Div([
         ], style={'display': 'flex', 'justify-content': 'space-between', 'align-items': 'stretch', 'width': '100%',
                   'height': '60vh'}),
 
-        html.Button("Roll Dice", id="roll-btn", n_clicks=0, style={'margin-top': '20px'}),
+        html.Button("Roll Dice", id="roll-btn", n_clicks=0, style={'margin-top': '20px','width': '100%', 'height': '100%'}),
         html.Div(id="roll-result", style={'margin-top': '10px'}),
     ], style={'width': '100%', 'height': '100%', 'margin': '0', 'padding': '20px', 'box-sizing': 'border-box',
               'overflow': 'hidden'})

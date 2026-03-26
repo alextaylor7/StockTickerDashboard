@@ -12,9 +12,9 @@ register_page(__name__, path="/user")
 layout = html.Div([
         html.H2("User Portfolio", id="profile-name", style={'text-align': 'center'}),
 
-        html.Div(f"Balance: ${user_balance}", id='user-balance',
+        html.Div(f"Balance: ${user_balance:.2f}", id='user-balance',
                  style={'text-align': 'center', 'font-size': '18px', 'margin-bottom': '10px'}),
-        html.Div(f"Net Value: ${user_balance}", id='user-net-value',
+        html.Div(f"Net Value: ${user_balance:.2f}", id='user-net-value',
                  style={'text-align': 'center', 'font-size': '18px', 'margin-bottom': '10px'}),
 
         html.Div([
@@ -72,6 +72,23 @@ layout = html.Div([
             ], style={'display': 'flex', 'justify-content': 'space-between', 'width': '100%', 'gap': '4%',
                       'margin': 'auto'}),
         ], style={'text-align': 'center', 'margin-top': '20px', 'width': '90%', 'margin': 'auto'}),
+
+        html.Div([
+            dcc.Input(
+                id='cash-input',
+                type='number',
+                placeholder='Enter cash amount',
+                min=0,
+                step=1,
+                style={'width': '70%', 'padding': '10px', 'font-size': '16px'}
+            ),
+            html.Button(
+                "Add Cash",
+                id='add-cash-btn',
+                n_clicks=0,
+                style={'width': '28%', 'margin-left': '2%', 'padding': '10px', 'font-size': '16px'}
+            )
+        ], style={'display': 'flex', 'width': '90%', 'margin': '15px auto 0 auto'}),
 
         html.Div(id='transaction-message', style={'text-align': 'center', 'margin-top': '10px', 'font-size': '16px'}),
         dcc.Store(id="user-data", storage_type="session"),

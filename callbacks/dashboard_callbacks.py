@@ -30,14 +30,16 @@ def update_stock(n, initial_load):
         stock, action, value = roll_dice()
 
         if action == "Up":
-            stock_prices[stock] += value
+            stock_prices[stock] = round(stock_prices[stock] + value, 2)
         elif action == "Down":
-            stock_prices[stock] = max(0, stock_prices[stock] - value)
+            stock_prices[stock] = round(max(0, stock_prices[stock] - value), 2)
 
         if stock_prices[stock] >= 2.00:
             stock_prices[stock] = 1.00
         elif stock_prices[stock] == 0:
             stock_prices[stock] = 1.00
+
+        stock_prices = {commodity: round(price, 2) for commodity, price in stock_prices.items()}
 
         # Store updated stock prices in session
         dash.get_app().server.config['STOCK_PRICES'] = stock_prices
@@ -49,13 +51,15 @@ def update_stock(n, initial_load):
         return ([{"Commodity": k, "Price": v} for k, v in stock_prices.items()],
                 f"Stock: {stock}",
                 f"Action: {action}",
-                f"Value: {value}",
+                f"Value: {value:.2f}",
                 fig)
     elif initial_load:
         # Get stored prices if they exist, otherwise use defaults
         stored_prices = dash.get_app().server.config.get('STOCK_PRICES')
         if stored_prices:
-            stock_prices = stored_prices
+            stock_prices = {commodity: round(float(stored_prices.get(commodity, 1.00)), 2) for commodity in commodities}
+        else:
+            stock_prices = {commodity: round(price, 2) for commodity, price in stock_prices.items()}
 
         fig = go.Figure()
         fig.add_trace(go.Bar(x=list(stock_prices.keys()), y=list(stock_prices.values()), marker_color='blue'))
