@@ -1,6 +1,6 @@
 import urllib
 import dash
-from dash import Input, Output, State, callback
+from dash import Input, Output, State, callback, no_update
 from constants import commodities, user_starting_balance
 
 
@@ -57,6 +57,7 @@ def _get_user_state_store():
     Output("user-net-value", "children"),
     Output("transaction-message", "children"),
     Input("url", "search"),
+    Input("stock-prices-store", "data"),
     Input("buy-500-btn", "n_clicks"),
     Input("buy-1000-btn", "n_clicks"),
     Input("buy-2000-btn", "n_clicks"),
@@ -71,16 +72,22 @@ def _get_user_state_store():
 )
 def handle_user_actions(
     search,
+    _stock_prices_store_data,
     buy500, buy1000, buy2000, buy5000,
     sell500, sell1000, sell2000, sell5000,
     add_cash_clicks,
     stock, cash_amount,
 ):
     ctx = dash.callback_context
-    # On initial page load Dash may report a placeholder trigger like '.' — treat as hydration.
-    triggered_prop = ctx.triggered[0]["prop_id"] if ctx.triggered else "url.search"
-    if triggered_prop in ("", "."):
-        triggered_prop = "url.search"
+    triggered_props = [t["prop_id"] for t in ctx.triggered] if ctx.triggered else []
+    if not triggered_props:
+        url_hydrate = True
+        poll_refresh = False
+    else:
+        url_hydrate = any(
+            tp in ("", ".") or tp.startswith("url.") for tp in triggered_props
+        )
+        poll_refresh = any(tp.startswith("stock-prices-store") for tp in triggered_props)
 
     username = _parse_username(search)
     user_key = username or "__anonymous__"
@@ -94,15 +101,24 @@ def handle_user_actions(
     current_state = all_users[user_key]
     stock_prices = _get_stock_prices()
 
-    # Hydration vs actions
+    # Hydration vs poll vs actions (URL takes precedence if both fire on initial load)
     message = ""
-    if triggered_prop.startswith("url."):
+    if url_hydrate:
         net_value = _net_value(current_state["balance"], current_state["stocks"], stock_prices)
         return (
             _to_table_data(current_state["stocks"]),
             f"Balance: ${current_state['balance']:.2f}",
             f"Net Value: ${net_value:.2f}",
             message,
+        )
+
+    if poll_refresh:
+        net_value = _net_value(current_state["balance"], current_state["stocks"], stock_prices)
+        return (
+            _to_table_data(current_state["stocks"]),
+            f"Balance: ${current_state['balance']:.2f}",
+            f"Net Value: ${net_value:.2f}",
+            no_update,
         )
 
     # Action triggered: buy/sell/add cash

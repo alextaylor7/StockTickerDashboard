@@ -98,7 +98,7 @@ The username comes from the `name` query parameter on `/user` (e.g. `/user?name=
 - **Same name, same portfolio everywhere**: any device that opens `/user?name=<same>` talks to the same in-memory record on that server.
 - **Restart clears everyone**: stopping the Python process removes `USER_STATE` (and in-memory stock prices). After a restart, each user starts from the default balance and zero shares until they trade again.
 
-Hydration runs when the user page loads (URL change or initial load). Buy/sell/add-cash actions update the server-side map via `handle_user_actions`.
+Hydration runs when the user page loads (URL change or initial load). Buy/sell/add-cash actions update the server-side map via `handle_user_actions`. The app also polls server stock prices on a short interval (`main.py`) so balance, share counts, and net value refresh automatically when the dashboard dice (or dividends/splits) change server state—no manual page refresh required.
 
 ## Running locally
 
