@@ -91,6 +91,5 @@ layout = html.Div([
         ], style={'display': 'flex', 'width': '90%', 'margin': '15px auto 0 auto'}),
 
         html.Div(id='transaction-message', style={'text-align': 'center', 'margin-top': '10px', 'font-size': '16px'}),
-        dcc.Store(id="user-data", storage_type="session"),
     ], style={'width': '90%', 'margin': 'auto', 'padding': '10px', 'display': 'flex', 'flex-direction': 'column',
               'align-items': 'center'})

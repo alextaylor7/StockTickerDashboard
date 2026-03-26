@@ -34,9 +34,28 @@ def update_stock(n, initial_load):
         elif action == "Down":
             stock_prices[stock] = round(max(0, stock_prices[stock] - value), 2)
 
+        server = dash.get_app().server
+        user_state = server.config.setdefault("USER_STATE", {})
+
+        # Dividend: pay cash = shares * value when stock is at/above par ($1.00); no price change
+        if action == "Dividend" and stock_prices[stock] >= 1.00:
+            for _username, state in user_state.items():
+                if isinstance(state, dict) and isinstance(state.get("stocks"), dict):
+                    shares = int(state["stocks"].get(stock, 0))
+                    cash = round(shares * value, 2)
+                    state["balance"] = round(float(state.get("balance", 0)) + cash, 2)
+
         if stock_prices[stock] >= 2.00:
+            # Split: price resets to 1; everyone's shares of this stock double
+            for _username, state in user_state.items():
+                if isinstance(state, dict) and isinstance(state.get("stocks"), dict):
+                    state["stocks"][stock] = int(state["stocks"].get(stock, 0)) * 2
             stock_prices[stock] = 1.00
-        elif stock_prices[stock] == 0:
+        elif stock_prices[stock] <= 0:
+            # Wipe: price resets to 1; everyone loses shares of this stock
+            for _username, state in user_state.items():
+                if isinstance(state, dict) and isinstance(state.get("stocks"), dict):
+                    state["stocks"][stock] = 0
             stock_prices[stock] = 1.00
 
         stock_prices = {commodity: round(price, 2) for commodity, price in stock_prices.items()}

@@ -83,37 +83,22 @@ Persistence behavior:
 - Prices persist **for as long as the Dash server process is running**.
 - Restarting the server resets prices back to `1.00` per commodity (unless you change the code to persist them elsewhere).
 
+When a roll moves a stock’s price to **2.00 or higher**, that commodity’s price is reset to **1.00** and **every user’s shares** of that commodity are **doubled** (see `callbacks/dashboard_callbacks.py` and `USER_STATE`). When a roll moves a price to **0 or below**, the price resets to **1.00** and **everyone’s shares** of that commodity are set to **0**.
+
+**Dividends:** If the dice show **Dividend** for a stock, that stock’s **price at the time of the roll** must be **at or above par ($1.00)** or no dividend is paid. If it is at/above par, each player’s **cash balance** increases by **shares held × value**, where `value` is the same dice amount used for Up/Down moves (`0.05`, `0.10`, or `0.20`). A Dividend roll does **not** change the stock price.
+
 ## How user portfolio state works
 
-On `/user`, the UI includes:
+Portfolios are stored **on the server** in Flask `server.config["USER_STATE"]` (see `callbacks/user_callbacks.py`):
 
-- `dcc.Store(id="user-data", storage_type="session")`
+- `username -> { balance: float, stocks: {commodity: int} }`
 
-The `user_callbacks.py` layer treats `user-data` as a map:
+The username comes from the `name` query parameter on `/user` (e.g. `/user?name=Alex`). If no name is given, the key `__anonymous__` is used.
 
-- `user_key -> { balance: float, stocks: {commodity: int} }`
+- **Same name, same portfolio everywhere**: any device that opens `/user?name=<same>` talks to the same in-memory record on that server.
+- **Restart clears everyone**: stopping the Python process removes `USER_STATE` (and in-memory stock prices). After a restart, each user starts from the default balance and zero shares until they trade again.
 
-Where `user_key` comes from:
-
-- the `name` query parameter parsed from the `dcc.Location` search string
-- if no name is provided, it uses `__anonymous__`
-
-Two callback groups drive the portfolio:
-
-1. **Hydration** (`hydrate_user_state`)
-   - Runs when the user page loads.
-   - Creates default holdings if this is the first time for that `user_key`.
-   - Computes net value as:
-     - `balance + sum(shares * current_stock_price)`
-
-2. **Actions** (`handle_user_actions`)
-   - Triggered when you click any buy/sell/add-cash button.
-   - Uses `dash.callback_context` to detect which button fired.
-   - Applies rules:
-     - Buying reduces cash (only if enough balance),
-     - Selling increases cash (only if you have enough shares),
-     - Adding cash increases balance.
-   - Stores the updated state back into `user-data` (session persistence in the browser).
+Hydration runs when the user page loads (URL change or initial load). Buy/sell/add-cash actions update the server-side map via `handle_user_actions`.
 
 ## Running locally
 
@@ -136,5 +121,6 @@ python main.py
 
 ## Notes / limitations
 
-- This is an in-memory demo: user state is stored in browser `sessionStorage`, and stock prices are stored in the Dash server process memory (`server.config`).
+- This is an in-memory demo: user portfolios and stock prices live in the Dash server process memory (`server.config`). They are **not** written to disk.
+- If you run multiple worker processes, each worker would have its own memory; use a single process for development, or add a shared database if you need production-scale persistence.
 - “Dividend” is part of the random action set, but the current implementation only applies effects for `Up` and `Down` (so `Dividend` does not change prices).

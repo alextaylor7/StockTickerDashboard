@@ -43,12 +43,19 @@ def _net_value(balance, stocks, stock_prices):
     return round(balance + holdings_value, 2)
 
 
+def _get_user_state_store():
+    """In-memory portfolios keyed by username; resets when the server process restarts."""
+    server = dash.get_app().server
+    if "USER_STATE" not in server.config:
+        server.config["USER_STATE"] = {}
+    return server.config["USER_STATE"]
+
+
 @callback(
     Output("user-stock-table", "data"),
     Output("user-balance", "children"),
     Output("user-net-value", "children"),
     Output("transaction-message", "children"),
-    Output("user-data", "data"),
     Input("url", "search"),
     Input("buy-500-btn", "n_clicks"),
     Input("buy-1000-btn", "n_clicks"),
@@ -61,7 +68,6 @@ def _net_value(balance, stocks, stock_prices):
     Input("add-cash-btn", "n_clicks"),
     State("stock-select", "value"),
     State("cash-input", "value"),
-    State("user-data", "data"),
 )
 def handle_user_actions(
     search,
@@ -69,16 +75,16 @@ def handle_user_actions(
     sell500, sell1000, sell2000, sell5000,
     add_cash_clicks,
     stock, cash_amount,
-    user_data
 ):
     ctx = dash.callback_context
-    # On initial page load Dash may call the callback without any triggered input.
-    # In that case we still want to hydrate from session data (no button click needed).
+    # On initial page load Dash may report a placeholder trigger like '.' — treat as hydration.
     triggered_prop = ctx.triggered[0]["prop_id"] if ctx.triggered else "url.search"
+    if triggered_prop in ("", "."):
+        triggered_prop = "url.search"
 
     username = _parse_username(search)
     user_key = username or "__anonymous__"
-    all_users = user_data or {}
+    all_users = _get_user_state_store()
 
     if user_key not in all_users:
         all_users[user_key] = _default_user_state()
@@ -97,7 +103,6 @@ def handle_user_actions(
             f"Balance: ${current_state['balance']:.2f}",
             f"Net Value: ${net_value:.2f}",
             message,
-            all_users
         )
 
     # Action triggered: buy/sell/add cash
@@ -139,7 +144,6 @@ def handle_user_actions(
         f"Balance: ${current_state['balance']:.2f}",
         f"Net Value: ${net_value:.2f}",
         message,
-        all_users
     )
 
 
