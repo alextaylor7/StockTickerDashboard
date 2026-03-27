@@ -1,7 +1,7 @@
 from dash import dcc, html, register_page, dash_table
-import plotly.graph_objects as go
 from dash.dash_table.Format import Format, Scheme
 from constants import commodities
+from callbacks.dashboard_callbacks import build_stock_graph_figure
 
 register_page(__name__, path="/dashboard")
 
@@ -9,10 +9,7 @@ register_page(__name__, path="/dashboard")
 
 stock_prices = {commodity: 1.00 for commodity in commodities}
 
-# Initialize figure
-fig = go.Figure()
-fig.add_trace(go.Bar(x=list(stock_prices.keys()), y=list(stock_prices.values()), marker_color='blue'))
-fig.update_layout(yaxis=dict(range=[0, 2]), title="Stock Prices")
+fig = build_stock_graph_figure(stock_prices)
 
 layout = html.Div([
         dcc.Store(id='_initial_load', data=True),

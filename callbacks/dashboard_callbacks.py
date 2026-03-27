@@ -2,10 +2,39 @@ import dash
 from dash import Input, Output, callback, State
 import random
 import plotly.graph_objects as go
-from constants import commodities
+from constants import commodities, COMMODITY_BAR_COLORS, CHART_BG, CHART_TEXT
 
 # Initialize stock prices with default values
 stock_prices = {commodity: 1.00 for commodity in commodities}
+
+
+def build_stock_graph_figure(stock_prices_dict):
+    x = list(commodities)
+    y = [stock_prices_dict[c] for c in commodities]
+    colors = [COMMODITY_BAR_COLORS[c] for c in commodities]
+    fig = go.Figure()
+    fig.add_trace(
+        go.Bar(
+            x=x,
+            y=y,
+            marker_color=colors,
+            marker_line=dict(color="rgba(0,0,0,0.35)", width=1),
+        )
+    )
+    fig.update_layout(
+        title=dict(text="Stock Prices", font=dict(color=CHART_TEXT)),
+        plot_bgcolor=CHART_BG,
+        paper_bgcolor=CHART_BG,
+        font=dict(color=CHART_TEXT),
+        yaxis=dict(
+            range=[0, 2],
+            gridcolor="rgba(255,255,255,0.15)",
+            zerolinecolor="rgba(255,255,255,0.25)",
+        ),
+        xaxis=dict(gridcolor="rgba(255,255,255,0.1)"),
+    )
+    return fig
+
 
 def roll_dice():
     stock = random.choice(commodities)
@@ -63,9 +92,7 @@ def update_stock(n, initial_load):
         # Store updated stock prices in session
         dash.get_app().server.config['STOCK_PRICES'] = stock_prices
 
-        fig = go.Figure()
-        fig.add_trace(go.Bar(x=list(stock_prices.keys()), y=list(stock_prices.values()), marker_color='blue'))
-        fig.update_layout(yaxis=dict(range=[0, 2]), title="Stock Prices")
+        fig = build_stock_graph_figure(stock_prices)
 
         return ([{"Commodity": k, "Price": v} for k, v in stock_prices.items()],
                 f"Stock: {stock}",
@@ -80,9 +107,7 @@ def update_stock(n, initial_load):
         else:
             stock_prices = {commodity: round(price, 2) for commodity, price in stock_prices.items()}
 
-        fig = go.Figure()
-        fig.add_trace(go.Bar(x=list(stock_prices.keys()), y=list(stock_prices.values()), marker_color='blue'))
-        fig.update_layout(yaxis=dict(range=[0, 2]), title="Stock Prices")
+        fig = build_stock_graph_figure(stock_prices)
 
         return ([{"Commodity": k, "Price": v} for k, v in stock_prices.items()],
                 "Stock: ",
