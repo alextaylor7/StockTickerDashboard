@@ -22,16 +22,22 @@ def build_stock_graph_figure(stock_prices_dict):
         )
     )
     fig.update_layout(
-        title=dict(text="Stock Prices", font=dict(color=CHART_TEXT)),
+        title=dict(text="Stock Prices", font=dict(color=CHART_TEXT, size=22)),
         plot_bgcolor=CHART_BG,
         paper_bgcolor=CHART_BG,
-        font=dict(color=CHART_TEXT),
+        font=dict(color=CHART_TEXT, size=16),
+        margin=dict(l=56, r=28, t=64, b=52),
         yaxis=dict(
             range=[0, 2],
             gridcolor="rgba(255,255,255,0.15)",
             zerolinecolor="rgba(255,255,255,0.25)",
+            tickfont=dict(size=16),
+            title=dict(text="Price", font=dict(size=16)),
         ),
-        xaxis=dict(gridcolor="rgba(255,255,255,0.1)"),
+        xaxis=dict(
+            gridcolor="rgba(255,255,255,0.1)",
+            tickfont=dict(size=15),
+        ),
     )
     return fig
 
@@ -44,9 +50,9 @@ def roll_dice():
 
 @callback(
     [Output("stock-table", "data"),
-     Output("rolled-stock", "children"),
-     Output("rolled-action", "children"),
-     Output("rolled-value", "children"),
+     Output("rolled-stock-value", "children"),
+     Output("rolled-action-value", "children"),
+     Output("rolled-value-value", "children"),
      Output("stock-graph", "figure")],
     [Input("roll-btn", "n_clicks"),
     Input("_initial_load", "data")],
@@ -95,9 +101,9 @@ def update_stock(n, initial_load):
         fig = build_stock_graph_figure(stock_prices)
 
         return ([{"Commodity": k, "Price": v} for k, v in stock_prices.items()],
-                f"Stock: {stock}",
-                f"Action: {action}",
-                f"Value: {value:.2f}",
+                stock,
+                action,
+                f"{value:.2f}",
                 fig)
     elif initial_load:
         # Get stored prices if they exist, otherwise use defaults
@@ -110,9 +116,9 @@ def update_stock(n, initial_load):
         fig = build_stock_graph_figure(stock_prices)
 
         return ([{"Commodity": k, "Price": v} for k, v in stock_prices.items()],
-                "Stock: ",
-                "Action: ",
-                "Value: ",
+                "",
+                "",
+                "",
                 fig)
 
     return dash.no_update
