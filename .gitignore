@@ -2,3 +2,11 @@
 *.pyc
 data/session_state.json
 data/session_crash_*.json
+
+# PyInstaller/build artifacts
+build/
+dist/
+*.spec
+
+# Local build virtual environment
+.venv-build/

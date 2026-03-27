@@ -119,8 +119,57 @@ python main.py
 
 - `http://127.0.0.1:8050/`
 
+## Build Windows executable (portable folder)
+
+This project includes a PowerShell build script for a Windows `onedir` bundle:
+
+```powershell
+.\build_exe.ps1
+```
+
+Build output:
+
+- Executable folder: `dist/StockTickerDashboard/`
+- Executable: `dist/StockTickerDashboard/StockTickerDashboard.exe`
+
+Run:
+
+```powershell
+.\dist\StockTickerDashboard\StockTickerDashboard.exe
+```
+
+Then open:
+
+- `http://127.0.0.1:8050/`
+
+Session persistence location for the executable build:
+
+- `dist/StockTickerDashboard/data/session_state.json`
+- Crash snapshots: `dist/StockTickerDashboard/data/session_crash_*.json`
+
+To run on another Windows computer, copy the entire `dist/StockTickerDashboard` folder and run `StockTickerDashboard.exe` there.
+
+## GitHub Actions release build
+
+This repo now supports automated Windows executable releases via GitHub Actions.
+
+- Workflow file: `.github/workflows/release.yml`
+- Trigger options:
+  - Push a tag that starts with `v` (example: `v1.0.0`)
+  - Manually run workflow (`workflow_dispatch`) and provide a tag
+- Output release asset:
+  - `StockTickerDashboard-windows.zip` (contents of `dist/StockTickerDashboard`)
+
+Tag example:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
 ## Notes / limitations
 
-- This is an in-memory demo: user portfolios and stock prices live in the Dash server process memory (`server.config`). They are **not** written to disk.
-- If you run multiple worker processes, each worker would have its own memory; use a single process for development, or add a shared database if you need production-scale persistence.
-- “Dividend” is part of the random action set, but the current implementation only applies effects for `Up` and `Down` (so `Dividend` does not change prices).
+- App state is kept in server memory during runtime (`server.config`) and saved to JSON on shutdown/updates.
+- For source runs (`python main.py`), session data is written under `data/session_state.json` in the project directory.
+- For executable runs, session data is written under the executable folder (`dist/StockTickerDashboard/data/session_state.json`).
+- If you run multiple worker processes, each worker has separate in-memory state; use a shared database for production-scale persistence.
