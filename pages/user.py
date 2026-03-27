@@ -145,6 +145,8 @@ layout = html.Div(
                     placeholder="Select a stock",
                     clearable=False,
                     searchable=False,
+                    # Default maxHeight is 200; optionHeight 35 × 6 rows = 210 — was clipping
+                    maxHeight=240,
                     style={
                         "width": "100%",
                         "marginBottom": "6px",
