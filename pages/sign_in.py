@@ -44,6 +44,24 @@ layout = html.Div(
                             n_clicks=0,
                             className="landing-btn landing-btn-secondary",
                         ),
+                        html.Div(
+                            [
+                                html.Button(
+                                    "Save session",
+                                    id="session-save-btn",
+                                    n_clicks=0,
+                                    className="landing-btn landing-btn-session",
+                                ),
+                                html.Button(
+                                    "Load session",
+                                    id="session-load-btn",
+                                    n_clicks=0,
+                                    className="landing-btn landing-btn-session landing-btn-session-secondary",
+                                ),
+                            ],
+                            className="session-actions",
+                        ),
+                        html.Div(id="session-feedback", className="session-feedback", children=""),
                     ],
                     className="landing-card",
                 ),

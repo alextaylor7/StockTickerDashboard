@@ -48,6 +48,34 @@ def roll_dice():
     value = random.choice([0.05, 0.10, 0.20])
     return stock, action, value
 
+def _hydrate_dashboard_from_server():
+    """Rebuild module stock_prices and figure from server.config (after load or navigation)."""
+    global stock_prices
+    stored_prices = dash.get_app().server.config.get("STOCK_PRICES")
+    # Use isinstance — empty dict {} is falsy but is still valid server state
+    if isinstance(stored_prices, dict):
+        stock_prices = {
+            commodity: round(float(stored_prices.get(commodity, 1.00)), 2) for commodity in commodities
+        }
+    else:
+        stock_prices = {commodity: round(price, 2) for commodity, price in stock_prices.items()}
+
+    fig = build_stock_graph_figure(stock_prices)
+    return (
+        [{"Commodity": k, "Price": v} for k, v in stock_prices.items()],
+        "",
+        "",
+        "",
+        fig,
+    )
+
+
+def _pathname_is_dashboard(pathname) -> bool:
+    if not pathname:
+        return False
+    return pathname.rstrip("/") == "/dashboard"
+
+
 @callback(
     [Output("stock-table", "data"),
      Output("rolled-stock-value", "children"),
@@ -55,13 +83,24 @@ def roll_dice():
      Output("rolled-value-value", "children"),
      Output("stock-graph", "figure")],
     [Input("roll-btn", "n_clicks"),
-    Input("_initial_load", "data")],
+     Input("_initial_load", "data"),
+     Input("session-reload", "data"),
+     Input("url", "pathname")],
     prevent_initial_call=False
 )
-def update_stock(n, initial_load):
+def update_stock(n, initial_load, session_reload, pathname):
     global stock_prices  # Move global declaration to the beginning of the function
-    
-    if n > 0:
+
+    ctx = dash.callback_context
+    # Initial callback often has no ctx.triggered; must hydrate from server (same idea as user_callbacks).
+    if not ctx.triggered:
+        return _hydrate_dashboard_from_server()
+
+    prop_id = ctx.triggered[0]["prop_id"]
+    tid = prop_id.split(".")[0] if prop_id else ""
+
+    roll_fired = any("roll-btn" in t.get("prop_id", "") for t in ctx.triggered)
+    if roll_fired and n and n > 0:
         stock, action, value = roll_dice()
 
         if action == "Up":
@@ -98,6 +137,10 @@ def update_stock(n, initial_load):
         # Store updated stock prices in session
         dash.get_app().server.config['STOCK_PRICES'] = stock_prices
 
+        from session_persistence import save_session
+
+        save_session(dash.get_app())
+
         fig = build_stock_graph_figure(stock_prices)
 
         return ([{"Commodity": k, "Price": v} for k, v in stock_prices.items()],
@@ -105,20 +148,18 @@ def update_stock(n, initial_load):
                 action,
                 f"{value:.2f}",
                 fig)
-    elif initial_load:
-        # Get stored prices if they exist, otherwise use defaults
-        stored_prices = dash.get_app().server.config.get('STOCK_PRICES')
-        if stored_prices:
-            stock_prices = {commodity: round(float(stored_prices.get(commodity, 1.00)), 2) for commodity in commodities}
-        else:
-            stock_prices = {commodity: round(price, 2) for commodity, price in stock_prices.items()}
 
-        fig = build_stock_graph_figure(stock_prices)
+    # Navigating to /dashboard after loading session on / — session-reload may have fired with no outputs mounted.
+    # Prefer scanning all triggers: order is not guaranteed when several inputs update at once.
+    triggered_ids = [t["prop_id"].split(".")[0] for t in ctx.triggered if t.get("prop_id")]
+    if "url" in triggered_ids and _pathname_is_dashboard(pathname):
+        return _hydrate_dashboard_from_server()
 
-        return ([{"Commodity": k, "Price": v} for k, v in stock_prices.items()],
-                "",
-                "",
-                "",
-                fig)
+    if (
+        any(x in triggered_ids for x in ("_initial_load", "session-reload"))
+        or initial_load
+        or session_reload is not None
+    ):
+        return _hydrate_dashboard_from_server()
 
     return dash.no_update

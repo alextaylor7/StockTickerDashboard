@@ -169,6 +169,10 @@ def handle_user_actions(
     all_users[user_key] = current_state
     net_value = _net_value(current_state["balance"], current_state["stocks"], stock_prices)
 
+    from session_persistence import save_session
+
+    save_session(dash.get_app())
+
     return (
         _to_table_data(current_state["stocks"]),
         f"Balance: ${current_state['balance']:.2f}",

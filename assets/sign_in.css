@@ -108,6 +108,35 @@
   margin-top: 12px;
 }
 
+.session-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.landing-btn-session {
+  flex: 1 1 50%;
+  margin-top: 0;
+  padding: 10px 12px;
+  font-size: clamp(0.88rem, 3vw, 1rem);
+  background-color: #0f766e;
+  color: #ffffff;
+}
+
+.landing-btn-session-secondary {
+  background-color: #ffffff;
+  color: #0f766e;
+  border: 2px solid #0f766e;
+}
+
+.session-feedback {
+  margin-top: 10px;
+  min-height: 1.25rem;
+  font-size: clamp(0.82rem, 2.8vw, 0.95rem);
+  color: #374151;
+  text-align: center;
+}
+
 /* No page-level scroll on sign-in; only the fixed panel may scroll if content is tall */
 body:has(#dash-shell .landing-page) {
   overflow: hidden;

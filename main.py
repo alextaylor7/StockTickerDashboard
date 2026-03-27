@@ -1,10 +1,12 @@
 from dash import Dash, dcc, html, page_container, callback, Output, Input, dash
 import callbacks.dashboard_callbacks
 import callbacks.user_callbacks  # noqa: F401 — register portfolio callbacks at startup
+from session_persistence import load_session, register_shutdown_handlers
 
 app = Dash(
     __name__,
     use_pages=True,
+    suppress_callback_exceptions=True,
     meta_tags=[
         {
             "name": "viewport",
@@ -13,12 +15,25 @@ app = Dash(
     ],
 )
 
+load_session(app)
+register_shutdown_handlers(app)
+
 # Define layout — #dash-shell / #content flex chain works with assets/viewport_desktop.css
 app.layout = html.Div(
     [
         dcc.Location(id="url", refresh="callback-nav"),
         dcc.Store(id="nav-store", storage_type="memory"),
         dcc.Store(id="stock-prices-store", storage_type="memory"),
+        dcc.Store(id="session-reload", storage_type="memory"),
+        dcc.Store(id="session-load-dummy", data=None),
+        dcc.Download(id="session-download"),
+        dcc.Upload(
+            id="session-upload",
+            children=[],
+            accept=".json,application/json",
+            style={"display": "none"},
+            multiple=False,
+        ),
         dcc.Interval(id="stock-prices-poll", interval=1000, n_intervals=0),
         html.Div(
             id="content",
@@ -62,9 +77,7 @@ def poll_stock_prices(_n):
     return app.server.config.get("STOCK_PRICES", {})
 
 
-# Import callbacks
-
-
+import callbacks.session_callbacks  # noqa: F401 — Save/Load session on landing page
 
 if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=8050, debug=True)
+    app.run(host="0.0.0.0", port=8050, debug=False)
