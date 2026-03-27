@@ -12,7 +12,17 @@ from typing import Any
 
 from constants import commodities
 
-SESSION_PATH = Path(__file__).resolve().parent / "data" / "session_state.json"
+
+def _runtime_base_dir() -> Path:
+    """Return writable runtime base folder for session files."""
+    # PyInstaller/other frozen builds: keep data beside the executable.
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    # Source run: keep existing repo-local behavior.
+    return Path(__file__).resolve().parent
+
+
+SESSION_PATH = _runtime_base_dir() / "data" / "session_state.json"
 VERSION = 1
 
 _app_ref: Any = None
