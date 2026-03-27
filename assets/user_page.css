@@ -31,9 +31,8 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
-/* Trade stacks: last button has no bottom gap */
-.user-trade-stack .user-trade-btn:last-child {
-  margin-bottom: 0 !important;
+.user-trade-grid {
+  align-content: start;
 }
 
 .user-trade-btn {

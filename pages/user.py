@@ -13,20 +13,28 @@ _BALANCE = "clamp(1.05rem, 4vw, 1.35rem)"
 _TABLE = "clamp(0.88rem, 3.4vw, 1.05rem)"
 _LABEL = "clamp(0.85rem, 3.2vw, 1rem)"
 
-# Inline styles so colours always apply (Dash/React); large touch targets for mobile.
+# Inline styles so colours always apply (Dash/React); 2x2 grid uses gap (no per-button margin).
 _TRADE_BTN_BASE = {
     "width": "100%",
-    "minHeight": "56px",
-    "padding": "14px 10px",
-    "fontSize": "clamp(1.1rem, 4.8vw, 1.3rem)",
+    "minHeight": "50px",
+    "padding": "12px 8px",
+    "fontSize": "clamp(1rem, 4.2vw, 1.2rem)",
     "fontWeight": "600",
     "border": "none",
     "borderRadius": "8px",
     "cursor": "pointer",
     "touchAction": "manipulation",
-    "marginBottom": "8px",
+    "marginBottom": "0",
     "color": "#ffffff",
     "boxSizing": "border-box",
+}
+
+_TRADE_GRID = {
+    "display": "grid",
+    "gridTemplateColumns": "repeat(2, minmax(0, 1fr))",
+    "gap": "8px",
+    "width": "100%",
+    "minWidth": "0",
 }
 
 _SELL_STYLE = {**_TRADE_BTN_BASE, "backgroundColor": "#dc2626"}
@@ -184,8 +192,8 @@ layout = html.Div(
                                 _sell_btn(2000, "sell-2000-btn"),
                                 _sell_btn(5000, "sell-5000-btn"),
                             ],
-                            className="user-trade-stack",
-                            style={"flex": "1 1 48%", "minWidth": "0"},
+                            className="user-trade-grid",
+                            style={**_TRADE_GRID, "flex": "1 1 48%"},
                         ),
                         html.Div(
                             [
@@ -194,8 +202,8 @@ layout = html.Div(
                                 _buy_btn(2000, "buy-2000-btn"),
                                 _buy_btn(5000, "buy-5000-btn"),
                             ],
-                            className="user-trade-stack",
-                            style={"flex": "1 1 48%", "minWidth": "0"},
+                            className="user-trade-grid",
+                            style={**_TRADE_GRID, "flex": "1 1 48%"},
                         ),
                     ],
                     style={
