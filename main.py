@@ -13,16 +13,34 @@ app = Dash(
     ],
 )
 
-# Define layout
-app.layout = html.Div([
-    dcc.Location(id='url', refresh="callback-nav"),  # Tracks URL changes
-    dcc.Store(id="nav-store", storage_type="memory"),  # Stores navigation state
-    dcc.Store(id="stock-prices-store", storage_type="memory"),
-    dcc.Interval(id="stock-prices-poll", interval=1000, n_intervals=0),
-
-    # Page content container
-    html.Div(id="content", children=page_container)
-])
+# Define layout — #dash-shell / #content flex chain works with assets/viewport_desktop.css
+app.layout = html.Div(
+    [
+        dcc.Location(id="url", refresh="callback-nav"),
+        dcc.Store(id="nav-store", storage_type="memory"),
+        dcc.Store(id="stock-prices-store", storage_type="memory"),
+        dcc.Interval(id="stock-prices-poll", interval=1000, n_intervals=0),
+        html.Div(
+            id="content",
+            className="dash-page-slot",
+            children=page_container,
+            style={
+                "flex": "1 1 auto",
+                "minHeight": "0",
+                "display": "flex",
+                "flexDirection": "column",
+                "boxSizing": "border-box",
+            },
+        ),
+    ],
+    id="dash-shell",
+    style={
+        "display": "flex",
+        "flexDirection": "column",
+        "minHeight": "100dvh",
+        "boxSizing": "border-box",
+    },
+)
 
 # Callback to update the URL based on `dcc.Store`
 @callback(
