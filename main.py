@@ -2,7 +2,16 @@ from dash import Dash, dcc, html, page_container, callback, Output, Input, dash
 import callbacks.dashboard_callbacks
 import callbacks.user_callbacks  # noqa: F401 — register portfolio callbacks at startup
 
-app = Dash(__name__, use_pages=True)
+app = Dash(
+    __name__,
+    use_pages=True,
+    meta_tags=[
+        {
+            "name": "viewport",
+            "content": "width=device-width, initial-scale=1, viewport-fit=cover",
+        },
+    ],
+)
 
 # Define layout
 app.layout = html.Div([
@@ -40,4 +49,4 @@ def poll_stock_prices(_n):
 
 
 if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=8050, debug=True)
+    app.run(host="0.0.0.0", port=8050, debug=False)
