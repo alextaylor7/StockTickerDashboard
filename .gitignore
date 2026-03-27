@@ -1,2 +1,4 @@
 .idea/*
 *.pyc
+data/session_state.json
+data/session_crash_*.json

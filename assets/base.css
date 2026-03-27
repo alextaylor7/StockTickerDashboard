@@ -1,0 +1,46 @@
+/* Full-window canvas — removes white strips behind Dash (dashboard, user, etc.) */
+html {
+  height: 100%;
+  background-color: #e9e9e9;
+}
+
+body {
+  margin: 0;
+  min-height: 100%;
+  min-height: 100dvh;
+  background-color: #e9e9e9;
+}
+
+/* React root is often default white; fill the window with app gray */
+#react-entry-point {
+  min-height: 100dvh;
+  background-color: #e9e9e9;
+}
+
+#react-entry-point > div {
+  min-height: 100dvh;
+  background-color: #e9e9e9;
+}
+
+div._dash-app-content {
+  min-height: 100dvh;
+  background-color: #e9e9e9;
+}
+
+/* Shell fills the window so dashboard (and empty area) match app gray */
+#dash-shell {
+  min-height: 100dvh;
+  background-color: #e9e9e9;
+}
+
+/* Sign-in: dark behind the fixed hero (see sign_in.css) */
+html:has(#dash-shell .landing-page),
+body:has(#dash-shell .landing-page) {
+  background-color: #1a1a2e;
+}
+
+body:has(#dash-shell .landing-page) #react-entry-point,
+body:has(#dash-shell .landing-page) #react-entry-point > div,
+body:has(#dash-shell .landing-page) div._dash-app-content {
+  background-color: #1a1a2e;
+}
