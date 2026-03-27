@@ -8,17 +8,17 @@ stock_prices = {commodity: 1.00 for commodity in commodities}
 
 register_page(__name__, path="/user")
 
-_TITLE = "clamp(1.35rem, 5vw, 1.85rem)"
-_BALANCE = "clamp(1.05rem, 4vw, 1.35rem)"
-_TABLE = "clamp(0.88rem, 3.4vw, 1.05rem)"
-_LABEL = "clamp(0.85rem, 3.2vw, 1rem)"
+_TITLE = "clamp(1.15rem, 4.2vw, 1.65rem)"
+_BALANCE = "clamp(0.92rem, 3.4vw, 1.2rem)"
+_TABLE = "clamp(0.8rem, 3vw, 1rem)"
+_LABEL = "clamp(0.78rem, 2.9vw, 0.95rem)"
 
 # Inline styles so colours always apply (Dash/React); 2x2 grid uses gap (no per-button margin).
 _TRADE_BTN_BASE = {
     "width": "100%",
-    "minHeight": "50px",
-    "padding": "12px 8px",
-    "fontSize": "clamp(1rem, 4.2vw, 1.2rem)",
+    "minHeight": "44px",
+    "padding": "8px 6px",
+    "fontSize": "clamp(0.9rem, 3.6vw, 1.08rem)",
     "fontWeight": "600",
     "border": "none",
     "borderRadius": "8px",
@@ -32,7 +32,7 @@ _TRADE_BTN_BASE = {
 _TRADE_GRID = {
     "display": "grid",
     "gridTemplateColumns": "repeat(2, minmax(0, 1fr))",
-    "gap": "8px",
+    "gap": "6px",
     "width": "100%",
     "minWidth": "0",
 }
@@ -45,9 +45,9 @@ _CASH_BTN_BASE = {
     "flex": "0 0 20%",
     "width": "20%",
     "minWidth": "0",
-    "minHeight": "56px",
-    "padding": "14px 10px",
-    "fontSize": "clamp(1.1rem, 4.8vw, 1.3rem)",
+    "minHeight": "48px",
+    "padding": "10px 8px",
+    "fontSize": "clamp(1rem, 4.2vw, 1.2rem)",
     "fontWeight": "600",
     "border": "none",
     "borderRadius": "8px",
@@ -75,7 +75,7 @@ layout = html.Div(
             id="profile-name",
             style={
                 "textAlign": "center",
-                "margin": "0 0 10px 0",
+                "margin": "0 0 6px 0",
                 "fontSize": _TITLE,
                 "fontWeight": "700",
                 "color": "#111",
@@ -89,7 +89,7 @@ layout = html.Div(
                 "textAlign": "center",
                 "fontSize": _BALANCE,
                 "fontWeight": "600",
-                "marginBottom": "6px",
+                "marginBottom": "4px",
                 "color": "#111",
             },
         ),
@@ -100,7 +100,7 @@ layout = html.Div(
                 "textAlign": "center",
                 "fontSize": _BALANCE,
                 "fontWeight": "600",
-                "marginBottom": "12px",
+                "marginBottom": "8px",
                 "color": "#111",
             },
         ),
@@ -115,14 +115,16 @@ layout = html.Div(
                     data=[{"Commodity": k, "Shares": v} for k, v in user_stocks.items()],
                     style_table={
                         "width": "100%",
-                        "minWidth": "100%",
+                        "minWidth": "0",
+                        "tableLayout": "fixed",
                     },
                     style_cell={
                         "textAlign": "center",
                         "fontSize": _TABLE,
-                        "padding": "12px 10px",
+                        "padding": "8px 8px",
                         "fontFamily": "system-ui, Segoe UI, sans-serif",
-                        "minWidth": "72px",
+                        "minWidth": "0",
+                        "maxWidth": "50%",
                     },
                     style_header={
                         "fontWeight": "700",
@@ -145,8 +147,8 @@ layout = html.Div(
                     searchable=False,
                     style={
                         "width": "100%",
-                        "marginBottom": "10px",
-                        "fontSize": "max(16px, 1rem)",
+                        "marginBottom": "6px",
+                        "fontSize": "max(16px, 0.95rem)",
                     },
                 ),
                 html.Div(
@@ -157,7 +159,7 @@ layout = html.Div(
                                 "textAlign": "center",
                                 "fontWeight": "700",
                                 "fontSize": _LABEL,
-                                "marginBottom": "6px",
+                                "marginBottom": "4px",
                                 "color": "#111",
                                 "flex": "1 1 48%",
                                 "minWidth": "0",
@@ -169,7 +171,7 @@ layout = html.Div(
                                 "textAlign": "center",
                                 "fontWeight": "700",
                                 "fontSize": _LABEL,
-                                "marginBottom": "6px",
+                                "marginBottom": "4px",
                                 "color": "#111",
                                 "flex": "1 1 48%",
                                 "minWidth": "0",
@@ -180,7 +182,7 @@ layout = html.Div(
                         "display": "flex",
                         "justifyContent": "space-between",
                         "width": "100%",
-                        "gap": "8px",
+                        "gap": "6px",
                     },
                 ),
                 html.Div(
@@ -210,12 +212,12 @@ layout = html.Div(
                         "display": "flex",
                         "justifyContent": "space-between",
                         "width": "100%",
-                        "gap": "8px",
+                        "gap": "6px",
                     },
                 ),
             ],
             className="user-trading-block",
-            style={"marginBottom": "8px"},
+            style={"marginBottom": "6px"},
         ),
         html.Div(
             [
@@ -246,15 +248,15 @@ layout = html.Div(
                 ),
             ],
             className="user-cash-row",
-            style={"marginTop": "12px"},
+            style={"marginTop": "8px"},
         ),
         html.Div(
             id="transaction-message",
             className="user-msg",
             style={
                 "textAlign": "center",
-                "marginTop": "12px",
-                "fontSize": "clamp(0.9rem, 3.5vw, 1.05rem)",
+                "marginTop": "8px",
+                "fontSize": "clamp(0.82rem, 3.1vw, 0.98rem)",
                 "color": "#333",
             },
         ),
