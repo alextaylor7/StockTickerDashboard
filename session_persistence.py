@@ -1,4 +1,4 @@
-"""Persist STOCK_PRICES, USER_STATE, and TURN_COUNT to data/session_state.json (atomic write)."""
+"""Persist STOCK_PRICES, USER_STATE, and TURN_COUNT (1-based next/current turn label) to data/session_state.json."""
 from __future__ import annotations
 
 import atexit
@@ -23,7 +23,8 @@ def _runtime_base_dir() -> Path:
 
 
 SESSION_PATH = _runtime_base_dir() / "data" / "session_state.json"
-VERSION = 1
+# v1: turn_count was completed-turn count (0,1,…). v2: turn_count is the next/current turn label (1,2,…).
+VERSION = 2
 
 _app_ref: Any = None
 
@@ -66,6 +67,26 @@ def _normalize_turn_count(raw: Any) -> int:
         return 0
 
 
+def _normalize_next_turn_label(raw: Any) -> int:
+    """1-based turn number shown on the Play button (minimum 1)."""
+    try:
+        return max(1, int(raw))
+    except (TypeError, ValueError):
+        return 1
+
+
+def _turn_count_from_saved_payload(data: dict) -> int:
+    """Map JSON turn_count to server TURN_COUNT (button label; 1-based)."""
+    file_ver = int(data.get("version", 1))
+    raw = data.get("turn_count")
+    if file_ver < 2:
+        completed = _normalize_turn_count(raw)
+        return max(1, completed + 1)
+    if raw is None:
+        return 1
+    return _normalize_next_turn_label(raw)
+
+
 def _sync_dashboard_module_prices(prices: dict[str, float]) -> None:
     import callbacks.dashboard_callbacks as dc
 
@@ -87,7 +108,7 @@ def build_payload(server) -> dict[str, Any]:
     else:
         user_state = _normalize_user_state_map(user_state)
 
-    turn_count = _normalize_turn_count(server.config.get("TURN_COUNT", 0))
+    turn_count = _normalize_next_turn_label(server.config.get("TURN_COUNT", 1))
 
     return {
         "version": VERSION,
@@ -118,13 +139,13 @@ def apply_payload_to_server(server, data: Any) -> None:
     if not isinstance(data, dict):
         server.config["STOCK_PRICES"] = _default_stock_prices()
         server.config["USER_STATE"] = {}
-        server.config["TURN_COUNT"] = 0
+        server.config["TURN_COUNT"] = 1
         _sync_dashboard_module_prices(server.config["STOCK_PRICES"])
         return
 
     server.config["STOCK_PRICES"] = _normalize_stock_prices(data.get("stock_prices"))
     server.config["USER_STATE"] = _normalize_user_state_map(data.get("user_state") or {})
-    server.config["TURN_COUNT"] = _normalize_turn_count(data.get("turn_count"))
+    server.config["TURN_COUNT"] = _turn_count_from_saved_payload(data)
     _sync_dashboard_module_prices(server.config["STOCK_PRICES"])
 
 
@@ -166,7 +187,7 @@ def load_session(app=None, server=None) -> None:
             server.config["STOCK_PRICES"] = _default_stock_prices()
         if "USER_STATE" not in server.config:
             server.config["USER_STATE"] = {}
-        server.config.setdefault("TURN_COUNT", 0)
+        server.config.setdefault("TURN_COUNT", 1)
         _sync_dashboard_module_prices(server.config["STOCK_PRICES"])
         return
 
@@ -176,7 +197,7 @@ def load_session(app=None, server=None) -> None:
     except (OSError, json.JSONDecodeError):
         server.config.setdefault("STOCK_PRICES", _default_stock_prices())
         server.config.setdefault("USER_STATE", {})
-        server.config.setdefault("TURN_COUNT", 0)
+        server.config.setdefault("TURN_COUNT", 1)
         _sync_dashboard_module_prices(server.config["STOCK_PRICES"])
         return
 

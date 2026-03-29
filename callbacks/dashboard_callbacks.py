@@ -124,8 +124,9 @@ def _sequence_remaining(seq_data):
 
 
 def _increment_turn_and_save():
+    """After a full turn's rolls finish, advance the 1-based turn label for the button."""
     server = dash.get_app().server
-    server.config["TURN_COUNT"] = int(server.config.get("TURN_COUNT", 0)) + 1
+    server.config["TURN_COUNT"] = int(server.config.get("TURN_COUNT", 1)) + 1
     save_session(dash.get_app())
 
 
@@ -224,33 +225,34 @@ def update_dashboard(n_roll, _n_interval, _initial_load_data, _session_reload, p
 
 
 @callback(
-    Output("turn-counter-display", "children"),
     Output("player-counter-display", "children"),
     Input("stock-prices-poll", "n_intervals"),
     Input("turn-sequence-store", "data"),
     Input("url", "pathname"),
 )
-def update_game_meta_displays(_poll_n, _seq_data, pathname):
-    """Read turn/players from server so the turn count updates as soon as a sequence ends (not only on 1s meta poll)."""
+def update_player_counter_display(_poll_n, _seq_data, pathname):
     if not _pathname_is_dashboard(pathname):
-        return no_update, no_update
-    server = dash.get_app().server
-    turn = int(server.config.get("TURN_COUNT", 0))
-    players = count_named_players(server.config.get("USER_STATE"))
-    return f"Turn: {turn}", f"Players: {players}"
+        return no_update
+    players = count_named_players(dash.get_app().server.config.get("USER_STATE"))
+    return f"Players: {players}"
 
 
 @callback(
     Output("roll-btn", "disabled"),
+    Output("roll-btn", "children"),
     Input("stock-prices-poll", "n_intervals"),
     Input("turn-sequence-store", "data"),
     Input("url", "pathname"),
     prevent_initial_call=False,
 )
-def sync_roll_btn_disabled(_poll_n, seq_data, pathname):
-    """Keep Play Turn in sync with live USER_STATE and turn sequence (poll runs ~1s)."""
+def sync_roll_btn(_poll_n, seq_data, pathname):
+    """Button label is Turn N (1-based); updates when a turn completes and the sequence store clears."""
     if not _pathname_is_dashboard(pathname):
-        return True
-    users = dash.get_app().server.config.get("USER_STATE")
+        return True, no_update
+    server = dash.get_app().server
+    turn_num = int(server.config.get("TURN_COUNT", 1))
+    label = f"Turn {turn_num}"
+    users = server.config.get("USER_STATE")
     players = count_named_players(users)
-    return _play_turn_button_disabled(players, seq_data)
+    disabled = _play_turn_button_disabled(players, seq_data)
+    return disabled, label

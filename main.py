@@ -86,7 +86,7 @@ def poll_stock_prices(_n):
 def poll_game_meta(_n):
     users = app.server.config.get("USER_STATE")
     n_players = count_named_players(users)
-    turn = int(app.server.config.get("TURN_COUNT", 0))
+    turn = int(app.server.config.get("TURN_COUNT", 1))
     return {"turn": turn, "players": n_players}
 
 

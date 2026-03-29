@@ -53,8 +53,8 @@ layout = html.Div(
                 html.Div(
                     [
                         html.Div(
-                            id="turn-counter-display",
-                            children="Turn: 0",
+                            id="player-counter-display",
+                            children="Players: 0",
                             style={**_HEADER_COUNTER, "textAlign": "left"},
                         ),
                         html.H1(
@@ -69,11 +69,6 @@ layout = html.Div(
                                 "letter-spacing": "0.02em",
                                 "color": "#1a1a1a",
                             },
-                        ),
-                        html.Div(
-                            id="player-counter-display",
-                            children="Players: 0",
-                            style={**_HEADER_COUNTER, "textAlign": "right"},
                         ),
                     ],
                     style={
@@ -231,7 +226,7 @@ layout = html.Div(
                 html.Div(
                     [
                         html.Button(
-                            "Play Turn",
+                            "Turn 1",
                             id="roll-btn",
                             n_clicks=0,
                             disabled=True,
