@@ -93,6 +93,49 @@ def _sync_dashboard_module_prices(prices: dict[str, float]) -> None:
     dc.stock_prices = {c: prices[c] for c in commodities}
 
 
+def _sync_dashboard_module_prices_to_server(server) -> None:
+    """Copy live dashboard module prices into server.config before persisting."""
+    try:
+        import callbacks.dashboard_callbacks as dc
+
+        if isinstance(getattr(dc, "stock_prices", None), dict):
+            server.config["STOCK_PRICES"] = {
+                c: round(float(dc.stock_prices.get(c, 1.00)), 2) for c in commodities
+            }
+    except Exception:
+        pass
+
+
+def _session_payload_is_empty_game_state(payload: dict[str, Any]) -> bool:
+    """True if snapshot has no users and all commodity prices are par ($1)."""
+    us = payload.get("user_state") or {}
+    if not isinstance(us, dict) or len(us) > 0:
+        return False
+    sp = payload.get("stock_prices") or {}
+    if not isinstance(sp, dict):
+        return True
+    return all(round(float(sp.get(c, 1.0)), 2) == 1.0 for c in commodities)
+
+
+def _would_clobber_saved_session_with_empty_runtime(
+    proposed: dict[str, Any], existing_file: dict[str, Any] | None
+) -> bool:
+    """Werkzeug reloader parent exits with empty server.config — do not overwrite a real session."""
+    if not existing_file or not isinstance(existing_file, dict):
+        return False
+    if not _session_payload_is_empty_game_state(proposed):
+        return False
+    old_us = existing_file.get("user_state") or {}
+    if isinstance(old_us, dict) and len(old_us) > 0:
+        return True
+    old_sp = existing_file.get("stock_prices") or {}
+    if isinstance(old_sp, dict):
+        for c in commodities:
+            if round(float(old_sp.get(c, 1.0)), 2) != 1.0:
+                return True
+    return False
+
+
 def build_payload(server) -> dict[str, Any]:
     """Snapshot dict for JSON (save file, download, crash snapshot)."""
     stock_prices = server.config.get("STOCK_PRICES")
@@ -156,6 +199,7 @@ def save_session(app=None, server=None) -> None:
     if server is None:
         return
 
+    _sync_dashboard_module_prices_to_server(server)
     payload = build_payload(server)
     _atomic_write_json(SESSION_PATH, payload)
 
@@ -209,6 +253,30 @@ def register_shutdown_handlers(app) -> None:
     global _app_ref
     _app_ref = app
 
+    def _flush():
+        try:
+            import dash
+
+            app = dash.get_app()
+            if app is None:
+                app = _app_ref
+            if app is None:
+                return
+            server = app.server
+            _sync_dashboard_module_prices_to_server(server)
+            proposed = build_payload(server)
+            if SESSION_PATH.is_file():
+                try:
+                    with open(SESSION_PATH, encoding="utf-8") as f:
+                        existing = json.load(f)
+                except (OSError, json.JSONDecodeError):
+                    existing = None
+                if _would_clobber_saved_session_with_empty_runtime(proposed, existing):
+                    return
+            save_session(app)
+        except Exception:
+            pass
+
     _original_excepthook = sys.excepthook
 
     def _excepthook(exc_type, exc_value, exc_traceback):
@@ -226,12 +294,6 @@ def register_shutdown_handlers(app) -> None:
         _original_excepthook(exc_type, exc_value, exc_traceback)
 
     sys.excepthook = _excepthook
-
-    def _flush():
-        try:
-            save_session(_app_ref)
-        except Exception:
-            pass
 
     atexit.register(_flush)
 

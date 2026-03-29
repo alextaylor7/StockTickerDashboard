@@ -92,5 +92,7 @@ def poll_game_meta(_n):
 
 import callbacks.session_callbacks  # noqa: F401 — Save/Load session on landing page
 
-if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=8050, debug=True)
+if __name__ == "__main__":
+    # use_reloader=False: Werkzeug's stat-reloader parent process never serves requests, so
+    # server.config stays empty; its atexit would overwrite session_state.json with defaults.
+    app.run(host="0.0.0.0", port=8050, debug=False, use_reloader=False)
