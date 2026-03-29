@@ -42,7 +42,7 @@ Key files:
      - share holdings per commodity.
    - Lets you:
      - select a commodity from `stock-select`,
-     - buy or sell a fixed number of shares (buttons for `500`, `1000`, `2000`, `5000`),
+     - buy or sell a fixed number of shares (buttons for `100`, `500`, `1000`, `5000`),
      - add cash via `cash-input` + `Add Cash`.
 
 ## How navigation works
