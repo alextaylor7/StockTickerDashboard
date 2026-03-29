@@ -44,3 +44,11 @@ body:has(#dash-shell .landing-page) #react-entry-point > div,
 body:has(#dash-shell .landing-page) div._dash-app-content {
   background-color: #1a1a2e;
 }
+
+/* Dash html.Button: ensure disabled blocks interaction if the attribute is missed */
+#roll-btn[disabled],
+#roll-btn:disabled {
+  pointer-events: none;
+  cursor: not-allowed;
+  opacity: 0.55;
+}

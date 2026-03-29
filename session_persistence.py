@@ -1,4 +1,4 @@
-"""Persist STOCK_PRICES and USER_STATE to data/session_state.json (atomic write)."""
+"""Persist STOCK_PRICES, USER_STATE, and TURN_COUNT to data/session_state.json (atomic write)."""
 from __future__ import annotations
 
 import atexit
@@ -59,6 +59,13 @@ def _normalize_stock_prices(raw: Any) -> dict[str, float]:
     return {c: round(float(raw.get(c, 1.00)), 2) for c in commodities}
 
 
+def _normalize_turn_count(raw: Any) -> int:
+    try:
+        return max(0, int(raw))
+    except (TypeError, ValueError):
+        return 0
+
+
 def _sync_dashboard_module_prices(prices: dict[str, float]) -> None:
     import callbacks.dashboard_callbacks as dc
 
@@ -80,10 +87,13 @@ def build_payload(server) -> dict[str, Any]:
     else:
         user_state = _normalize_user_state_map(user_state)
 
+    turn_count = _normalize_turn_count(server.config.get("TURN_COUNT", 0))
+
     return {
         "version": VERSION,
         "stock_prices": stock_prices,
         "user_state": user_state,
+        "turn_count": turn_count,
     }
 
 
@@ -108,16 +118,18 @@ def apply_payload_to_server(server, data: Any) -> None:
     if not isinstance(data, dict):
         server.config["STOCK_PRICES"] = _default_stock_prices()
         server.config["USER_STATE"] = {}
+        server.config["TURN_COUNT"] = 0
         _sync_dashboard_module_prices(server.config["STOCK_PRICES"])
         return
 
     server.config["STOCK_PRICES"] = _normalize_stock_prices(data.get("stock_prices"))
     server.config["USER_STATE"] = _normalize_user_state_map(data.get("user_state") or {})
+    server.config["TURN_COUNT"] = _normalize_turn_count(data.get("turn_count"))
     _sync_dashboard_module_prices(server.config["STOCK_PRICES"])
 
 
 def save_session(app=None, server=None) -> None:
-    """Write current server.config STOCK_PRICES and USER_STATE to disk."""
+    """Write current server.config STOCK_PRICES, USER_STATE, and TURN_COUNT to disk."""
     if app is not None:
         server = app.server
     if server is None:
@@ -154,6 +166,7 @@ def load_session(app=None, server=None) -> None:
             server.config["STOCK_PRICES"] = _default_stock_prices()
         if "USER_STATE" not in server.config:
             server.config["USER_STATE"] = {}
+        server.config.setdefault("TURN_COUNT", 0)
         _sync_dashboard_module_prices(server.config["STOCK_PRICES"])
         return
 
@@ -163,6 +176,7 @@ def load_session(app=None, server=None) -> None:
     except (OSError, json.JSONDecodeError):
         server.config.setdefault("STOCK_PRICES", _default_stock_prices())
         server.config.setdefault("USER_STATE", {})
+        server.config.setdefault("TURN_COUNT", 0)
         _sync_dashboard_module_prices(server.config["STOCK_PRICES"])
         return
 

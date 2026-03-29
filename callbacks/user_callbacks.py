@@ -3,6 +3,15 @@ import dash
 from dash import Input, Output, State, callback, no_update
 from constants import commodities, user_starting_balance
 
+ANONYMOUS_USER_KEY = "__anonymous__"
+
+
+def count_named_players(user_state) -> int:
+    """Count USER_STATE keys except the shared anonymous portfolio."""
+    if not isinstance(user_state, dict):
+        return 0
+    return sum(1 for k in user_state if k != ANONYMOUS_USER_KEY)
+
 
 def _parse_username(search):
     if not search:
@@ -92,7 +101,7 @@ def handle_user_actions(
         poll_refresh = any(tp.startswith("stock-prices-store") for tp in triggered_props)
 
     username = _parse_username(search)
-    user_key = username or "__anonymous__"
+    user_key = username or ANONYMOUS_USER_KEY
     all_users = _get_user_state_store()
 
     if user_key not in all_users:

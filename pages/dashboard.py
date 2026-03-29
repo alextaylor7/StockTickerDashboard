@@ -11,6 +11,13 @@ fig = build_stock_graph_figure(stock_prices)
 _TABLE_FONT = "clamp(1rem, 1.35vw, 1.35rem)"
 _DICE_FONT = "clamp(1.25rem, 2.2vw, 2rem)"
 _TITLE_SIZE = "clamp(1.75rem, 4vw, 3rem)"
+_HEADER_COUNTER = {
+    "fontSize": "clamp(1rem, 2.2vw, 1.35rem)",
+    "fontWeight": "600",
+    "color": "#1a1a1a",
+    "flex": "0 0 auto",
+    "minWidth": "0",
+}
 
 _DICE_LABEL_STYLE = {
     "fontSize": _DICE_FONT,
@@ -39,17 +46,42 @@ _DICE_VALUE_STYLE = {
 layout = html.Div(
     [
         dcc.Store(id="_initial_load", data=True),
+        dcc.Store(id="turn-sequence-store", data=None),
+        dcc.Interval(id="turn-roll-interval", interval=1500, n_intervals=0, disabled=True),
         html.Div(
             [
-                html.H1(
-                    "Stock Ticker Game",
+                html.Div(
+                    [
+                        html.Div(
+                            id="turn-counter-display",
+                            children="Turn: 0",
+                            style={**_HEADER_COUNTER, "textAlign": "left"},
+                        ),
+                        html.H1(
+                            "Stock Ticker Game",
+                            style={
+                                "text-align": "center",
+                                "margin": "0",
+                                "flex": "1 1 auto",
+                                "minWidth": "0",
+                                "font-size": _TITLE_SIZE,
+                                "font-weight": "700",
+                                "letter-spacing": "0.02em",
+                                "color": "#1a1a1a",
+                            },
+                        ),
+                        html.Div(
+                            id="player-counter-display",
+                            children="Players: 0",
+                            style={**_HEADER_COUNTER, "textAlign": "right"},
+                        ),
+                    ],
                     style={
-                        "text-align": "center",
-                        "margin": "0 0 12px 0",
-                        "font-size": _TITLE_SIZE,
-                        "font-weight": "700",
-                        "letter-spacing": "0.02em",
-                        "color": "#1a1a1a",
+                        "display": "flex",
+                        "alignItems": "center",
+                        "gap": "12px",
+                        "width": "100%",
+                        "marginBottom": "12px",
                     },
                 ),
                 html.Div(
@@ -199,9 +231,10 @@ layout = html.Div(
                 html.Div(
                     [
                         html.Button(
-                            "Roll Dice",
+                            "Play Turn",
                             id="roll-btn",
                             n_clicks=0,
+                            disabled=True,
                             style={
                                 "margin-top": "16px",
                                 "width": "100%",
@@ -218,15 +251,6 @@ layout = html.Div(
                                 "backgroundColor": "#2563eb",
                                 "color": "#ffffff",
                                 "boxShadow": "0 4px 14px rgba(37, 99, 235, 0.45)",
-                            },
-                        ),
-                        html.Div(
-                            "Press Space or click to roll",
-                            style={
-                                "text-align": "center",
-                                "margin-top": "8px",
-                                "font-size": "clamp(0.9rem, 1.2vw, 1.1rem)",
-                                "color": "#555",
                             },
                         ),
                     ],
