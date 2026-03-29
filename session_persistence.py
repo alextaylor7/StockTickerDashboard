@@ -1,4 +1,4 @@
-"""Persist STOCK_PRICES, USER_STATE, and TURN_COUNT (1-based next/current turn label) to data/session_state.json."""
+"""Persist STOCK_PRICES, USER_STATE, TURN_COUNT, turn timeline, and turn-roll timing to data/session_state.json."""
 from __future__ import annotations
 
 import atexit
@@ -25,7 +25,8 @@ def _runtime_base_dir() -> Path:
 SESSION_PATH = _runtime_base_dir() / "data" / "session_state.json"
 # v1: turn_count was completed-turn count (0,1,…). v2: turn_count is the next/current turn label (1,2,…).
 # v3: optional turn_timeline (per-turn snapshots for dashboard graphs).
-VERSION = 3
+# v4: optional turn_roll_interval_sec (integer seconds between dice rolls in a turn).
+VERSION = 4
 
 _app_ref: Any = None
 
@@ -104,6 +105,15 @@ def _normalize_next_turn_label(raw: Any) -> int:
         return max(1, int(raw))
     except (TypeError, ValueError):
         return 1
+
+
+def _normalize_turn_roll_interval_sec(raw: Any) -> int:
+    """Whole seconds between automatic rolls during a multi-player turn (clamped)."""
+    try:
+        v = int(float(raw))
+    except (TypeError, ValueError):
+        v = 1
+    return max(1, min(600, v))
 
 
 def _turn_count_from_saved_payload(data: dict) -> int:
@@ -190,12 +200,17 @@ def build_payload(server) -> dict[str, Any]:
     else:
         turn_timeline = _normalize_turn_timeline(turn_timeline)
 
+    turn_roll_interval_sec = _normalize_turn_roll_interval_sec(
+        server.config.get("TURN_ROLL_INTERVAL_SEC")
+    )
+
     return {
         "version": VERSION,
         "stock_prices": stock_prices,
         "user_state": user_state,
         "turn_count": turn_count,
         "turn_timeline": turn_timeline,
+        "turn_roll_interval_sec": turn_roll_interval_sec,
     }
 
 
@@ -222,6 +237,7 @@ def apply_payload_to_server(server, data: Any) -> None:
         server.config["USER_STATE"] = {}
         server.config["TURN_COUNT"] = 1
         server.config["TURN_TIMELINE"] = []
+        server.config["TURN_ROLL_INTERVAL_SEC"] = _normalize_turn_roll_interval_sec(None)
         _sync_dashboard_module_prices(server.config["STOCK_PRICES"])
         return
 
@@ -229,6 +245,9 @@ def apply_payload_to_server(server, data: Any) -> None:
     server.config["USER_STATE"] = _normalize_user_state_map(data.get("user_state") or {})
     server.config["TURN_COUNT"] = _turn_count_from_saved_payload(data)
     server.config["TURN_TIMELINE"] = _normalize_turn_timeline(data.get("turn_timeline"))
+    server.config["TURN_ROLL_INTERVAL_SEC"] = _normalize_turn_roll_interval_sec(
+        data.get("turn_roll_interval_sec")
+    )
     _sync_dashboard_module_prices(server.config["STOCK_PRICES"])
 
 
@@ -273,6 +292,9 @@ def load_session(app=None, server=None) -> None:
             server.config["USER_STATE"] = {}
         server.config.setdefault("TURN_COUNT", 1)
         server.config.setdefault("TURN_TIMELINE", [])
+        server.config.setdefault(
+            "TURN_ROLL_INTERVAL_SEC", _normalize_turn_roll_interval_sec(None)
+        )
         _sync_dashboard_module_prices(server.config["STOCK_PRICES"])
         return
 
@@ -284,6 +306,9 @@ def load_session(app=None, server=None) -> None:
         server.config.setdefault("USER_STATE", {})
         server.config.setdefault("TURN_COUNT", 1)
         server.config.setdefault("TURN_TIMELINE", [])
+        server.config.setdefault(
+            "TURN_ROLL_INTERVAL_SEC", _normalize_turn_roll_interval_sec(None)
+        )
         _sync_dashboard_module_prices(server.config["STOCK_PRICES"])
         return
 

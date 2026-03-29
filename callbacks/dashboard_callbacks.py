@@ -1,5 +1,5 @@
 import dash
-from dash import Input, Output, State, callback, no_update
+from dash import Input, Output, State, callback, no_update, set_props
 import random
 import plotly.graph_objects as go
 from constants import (
@@ -10,7 +10,7 @@ from constants import (
     commodities,
 )
 
-from session_persistence import save_session
+from session_persistence import save_session, _normalize_turn_roll_interval_sec
 from callbacks.user_callbacks import ANONYMOUS_USER_KEY, _net_value, count_named_players
 
 # Initialize stock prices with default values
@@ -278,6 +278,13 @@ def _hydrate_dashboard_from_server():
 
     fig = build_stock_graph_figure(stock_prices)
     pn_fig, co_fig = _timeline_figures_from_server()
+    ms = (
+        _normalize_turn_roll_interval_sec(
+            dash.get_app().server.config.get("TURN_ROLL_INTERVAL_SEC")
+        )
+        * 1000
+    )
+    set_props("turn-roll-interval", {"interval": ms})
     return (
         [{"Commodity": k, "Price": v} for k, v in stock_prices.items()],
         "",
@@ -295,6 +302,83 @@ def _pathname_is_dashboard(pathname) -> bool:
     if not pathname:
         return False
     return pathname.rstrip("/") == "/dashboard"
+
+
+_HIDDEN_SETTINGS_MODAL_STYLE = {
+    "display": "none",
+    "position": "fixed",
+    "inset": "0",
+    "zIndex": "1000",
+    "alignItems": "center",
+    "justifyContent": "center",
+    "padding": "24px",
+    "boxSizing": "border-box",
+}
+_VISIBLE_SETTINGS_MODAL_STYLE = {**_HIDDEN_SETTINGS_MODAL_STYLE, "display": "flex"}
+
+
+@callback(
+    Output("settings-modal", "style"),
+    Output("turn-roll-sec-input", "value"),
+    [
+        Input("settings-gear-btn", "n_clicks"),
+        Input("settings-modal-backdrop-btn", "n_clicks"),
+        Input("settings-modal-close-btn", "n_clicks"),
+        Input("settings-apply-btn", "n_clicks"),
+        Input("url", "pathname"),
+        Input("session-reload", "data"),
+        Input("_initial_load", "data"),
+    ],
+    State("turn-roll-sec-input", "value"),
+    prevent_initial_call=False,
+)
+def settings_modal_and_interval(
+    _n_gear,
+    _n_backdrop,
+    _n_close,
+    _n_apply,
+    pathname,
+    _session_reload,
+    _initial_load,
+    sec_input,
+):
+    """Modal only. Do not Output turn-roll-interval.interval here — that resets the timer in Dash 3 and drops ticks."""
+    ctx = dash.callback_context
+    server = dash.get_app().server
+    # Dashboard-only layout: never patch these outputs or set_props from other routes (breaks Dash 3 renderer).
+    if not _pathname_is_dashboard(pathname):
+        return no_update, no_update
+
+    hid, vis = _HIDDEN_SETTINGS_MODAL_STYLE, _VISIBLE_SETTINGS_MODAL_STYLE
+
+    def sec_from_server() -> int:
+        return _normalize_turn_roll_interval_sec(server.config.get("TURN_ROLL_INTERVAL_SEC"))
+
+    trig = ctx.triggered_id
+    if trig is None:
+        return hid, no_update
+
+    if trig == "url":
+        return no_update, no_update
+
+    if trig in ("session-reload", "_initial_load"):
+        return no_update, no_update
+
+    if trig == "settings-gear-btn":
+        s = sec_from_server()
+        return vis, s
+
+    if trig in ("settings-modal-backdrop-btn", "settings-modal-close-btn"):
+        return hid, no_update
+
+    if trig == "settings-apply-btn":
+        sec = _normalize_turn_roll_interval_sec(sec_input)
+        server.config["TURN_ROLL_INTERVAL_SEC"] = sec
+        save_session(dash.get_app())
+        set_props("turn-roll-interval", {"interval": sec * 1000})
+        return hid, sec
+
+    return no_update, no_update
 
 
 @callback(
@@ -323,13 +407,17 @@ def update_dashboard(n_roll, _n_interval, _initial_load_data, _session_reload, p
     global stock_prices
 
     ctx = dash.callback_context
-    triggered_ids = [t["prop_id"].split(".")[0] for t in ctx.triggered if t.get("prop_id")]
+    tp = ctx.triggered_prop_ids
+
+    # Dashboard-only layout: avoid outputs + set_props for missing components (e.g. sign-in /).
+    if not _pathname_is_dashboard(pathname):
+        return (no_update,) * 9
 
     if not ctx.triggered:
         return _hydrate_dashboard_from_server()
 
-    interval_fired = "turn-roll-interval" in triggered_ids
-    roll_fired = any("roll-btn" in t.get("prop_id", "") for t in ctx.triggered)
+    interval_fired = "turn-roll-interval.n_intervals" in tp
+    roll_fired = "roll-btn.n_clicks" in tp
 
     if interval_fired:
         rem = _sequence_remaining(seq_data)
@@ -357,10 +445,12 @@ def update_dashboard(n_roll, _n_interval, _initial_load_data, _session_reload, p
             return (table, rs, ra, rv, fig, None, True, pn_fig, co_fig)
         return (table, rs, ra, rv, fig, {"remaining": rem_after}, False, no_update, no_update)
 
-    if "url" in triggered_ids and _pathname_is_dashboard(pathname):
+    if "url.pathname" in tp and _pathname_is_dashboard(pathname):
         return _hydrate_dashboard_from_server()
 
-    if any(x in triggered_ids for x in ("_initial_load", "session-reload")):
+    if ("_initial_load.data" in tp or "session-reload.data" in tp) and _pathname_is_dashboard(
+        pathname
+    ):
         return _hydrate_dashboard_from_server()
 
     return (no_update,) * 9
