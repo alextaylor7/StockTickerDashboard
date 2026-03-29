@@ -2,7 +2,13 @@ import dash
 from dash import Input, Output, State, callback, no_update
 import random
 import plotly.graph_objects as go
-from constants import commodities, COMMODITY_BAR_COLORS, CHART_BG, CHART_TEXT
+from constants import (
+    CHART_BG,
+    CHART_TEXT,
+    COMMODITY_BAR_COLORS,
+    COMMODITY_TIMELINE_LINE_COLORS,
+    commodities,
+)
 
 from session_persistence import save_session
 from callbacks.user_callbacks import ANONYMOUS_USER_KEY, _net_value, count_named_players
@@ -54,7 +60,7 @@ def _timeline_base_layout(title: str, y_title: str):
         margin=dict(l=56, r=28, t=64, b=52),
         legend=dict(font=dict(color=CHART_TEXT, size=14)),
         xaxis=dict(
-            title=dict(text="Completed turn", font=dict(size=14)),
+            title=dict(text="Completed Turn", font=dict(size=14)),
             gridcolor="rgba(255,255,255,0.15)",
             tickfont=dict(size=14),
         ),
@@ -70,7 +76,7 @@ def _timeline_base_layout(title: str, y_title: str):
 def build_player_net_timeline_figure(timeline: list) -> go.Figure:
     fig = go.Figure()
     if not isinstance(timeline, list) or len(timeline) == 0:
-        fig.update_layout(**_timeline_base_layout("Player net value", "Net value ($)"))
+        fig.update_layout(**_timeline_base_layout("Player Net Value", "Net Value ($)"))
         return fig
 
     turns = [p["turn"] for p in timeline if isinstance(p, dict)]
@@ -96,14 +102,14 @@ def build_player_net_timeline_figure(timeline: list) -> go.Figure:
                 connectgaps=False,
             )
         )
-    fig.update_layout(**_timeline_base_layout("Player net value", "Net value ($)"))
+    fig.update_layout(**_timeline_base_layout("Player Net Value", "Net Value ($)"))
     return fig
 
 
 def build_commodity_timeline_figure(timeline: list) -> go.Figure:
     fig = go.Figure()
     if not isinstance(timeline, list) or len(timeline) == 0:
-        fig.update_layout(**_timeline_base_layout("Commodity prices (end of turn)", "Price ($)"))
+        fig.update_layout(**_timeline_base_layout("Commodity Prices", "Price ($)"))
         return fig
 
     turns = [p["turn"] for p in timeline if isinstance(p, dict)]
@@ -115,17 +121,23 @@ def build_commodity_timeline_figure(timeline: list) -> go.Figure:
                 continue
             sp = p.get("stock_prices") if isinstance(p.get("stock_prices"), dict) else {}
             ys.append(sp.get(c))
+        line_color = COMMODITY_TIMELINE_LINE_COLORS.get(c, "#cccccc")
         fig.add_trace(
             go.Scatter(
                 x=turns,
                 y=ys,
                 mode="lines+markers",
                 name=c,
-                line=dict(color=COMMODITY_BAR_COLORS.get(c, "#cccccc")),
+                line=dict(color=line_color, width=2),
+                marker=dict(
+                    size=8,
+                    color=line_color,
+                    line=dict(width=1, color="rgba(0,0,0,0.45)"),
+                ),
                 connectgaps=False,
             )
         )
-    fig.update_layout(**_timeline_base_layout("Commodity prices (end of turn)", "Price ($)"))
+    fig.update_layout(**_timeline_base_layout("Commodity Prices", "Price ($)"))
     return fig
 
 

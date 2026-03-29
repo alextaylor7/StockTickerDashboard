@@ -17,6 +17,7 @@ commodity_timeline_fig = build_commodity_timeline_figure([])
 _GRAPH_CONFIG = {
     "displayModeBar": True,
     "displaylogo": False,
+    "responsive": True,
     "modeBarButtonsToRemove": ["lasso2d", "select2d"],
 }
 
@@ -70,7 +71,7 @@ layout = html.Div(
                             style={**_HEADER_COUNTER, "textAlign": "left"},
                         ),
                         html.H1(
-                            "Stock Ticker Game",
+                            "Stock Ticker",
                             style={
                                 "text-align": "center",
                                 "margin": "0",
@@ -226,10 +227,13 @@ layout = html.Div(
                         "align-items": "stretch",
                         "gap": "16px",
                         "width": "100%",
+                        "minWidth": 0,
                         "flex": "1 1 auto",
                         "minHeight": "0",
-                        "overflow": "visible",
+                        "overflow-x": "auto",
+                        "overflow-y": "visible",
                     },
+                    className="dashboard-main-row",
                 ),
                 html.Div(
                     [
@@ -261,29 +265,43 @@ layout = html.Div(
                 ),
                 html.Div(
                     [
-                        dcc.Graph(
-                            id="player-net-timeline-graph",
-                            figure=player_net_timeline_fig,
-                            config=_GRAPH_CONFIG,
+                        html.Div(
+                            dcc.Graph(
+                                id="player-net-timeline-graph",
+                                figure=player_net_timeline_fig,
+                                config=_GRAPH_CONFIG,
+                                style={
+                                    "width": "100%",
+                                    "height": "100%",
+                                    "minHeight": "280px",
+                                },
+                            ),
                             style={
-                                "width": "100%",
-                                "minWidth": "280px",
-                                "minHeight": "280px",
-                                "flex": "1 1 400px",
-                                "maxWidth": "100%",
+                                "flex": "0 0 calc(50% - 8px)",
+                                "minWidth": 0,
+                                "maxWidth": "calc(50% - 8px)",
+                                "boxSizing": "border-box",
                             },
+                            className="dashboard-timeline-cell",
                         ),
-                        dcc.Graph(
-                            id="commodity-timeline-graph",
-                            figure=commodity_timeline_fig,
-                            config=_GRAPH_CONFIG,
+                        html.Div(
+                            dcc.Graph(
+                                id="commodity-timeline-graph",
+                                figure=commodity_timeline_fig,
+                                config=_GRAPH_CONFIG,
+                                style={
+                                    "width": "100%",
+                                    "height": "100%",
+                                    "minHeight": "280px",
+                                },
+                            ),
                             style={
-                                "width": "100%",
-                                "minWidth": "280px",
-                                "minHeight": "280px",
-                                "flex": "1 1 400px",
-                                "maxWidth": "100%",
+                                "flex": "0 0 calc(50% - 8px)",
+                                "minWidth": 0,
+                                "maxWidth": "calc(50% - 8px)",
+                                "boxSizing": "border-box",
                             },
+                            className="dashboard-timeline-cell",
                         ),
                     ],
                     style={
@@ -294,12 +312,13 @@ layout = html.Div(
                         "padding": "16px 8px 24px",
                         "display": "flex",
                         "flexDirection": "row",
-                        "flexWrap": "wrap",
-                        "justifyContent": "center",
+                        "flexWrap": "nowrap",
+                        "justifyContent": "space-between",
                         "alignItems": "stretch",
                         "gap": "16px",
                         "boxSizing": "border-box",
                     },
+                    className="dashboard-timeline-row",
                 ),
                 html.Div(id="roll-result", style={"margin-top": "12px"}),
             ],

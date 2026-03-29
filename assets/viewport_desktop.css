@@ -1,55 +1,116 @@
-﻿/*
- * Desktop: dashboard uses a scrollable #content region so the full page (including
- * timeline graphs) is reachable. Sign-in uses fixed .landing-page (sign_in.css).
+/*
+ * Desktop dashboard: document scrolls on body (avoids nested overflow chains that clip
+ * content). Sign-in uses fixed .landing-page (sign_in.css).
  */
 
+/*
+ * Hide scrollbars for the dashboard on all engines (wheel / trackpad / touch still scroll).
+ * html + body: some environments attach the vertical scrollbar to either element.
+ */
+html:has(#dash-shell .dashboard-page),
+body:has(#dash-shell .dashboard-page) {
+  /* Firefox */
+  scrollbar-width: none;
+  /* IE 10–11 / legacy Edge */
+  -ms-overflow-style: none;
+}
+
+html:has(#dash-shell .dashboard-page)::-webkit-scrollbar,
+body:has(#dash-shell .dashboard-page)::-webkit-scrollbar {
+  /* Chromium, Safari, Opera, Edge (Blink) */
+  -webkit-appearance: none;
+  appearance: none;
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+  background: transparent !important;
+}
+
+html:has(#dash-shell .dashboard-page)::-webkit-scrollbar-button,
+body:has(#dash-shell .dashboard-page)::-webkit-scrollbar-button,
+html:has(#dash-shell .dashboard-page)::-webkit-scrollbar-track,
+body:has(#dash-shell .dashboard-page)::-webkit-scrollbar-track,
+html:has(#dash-shell .dashboard-page)::-webkit-scrollbar-track-piece,
+body:has(#dash-shell .dashboard-page)::-webkit-scrollbar-track-piece,
+html:has(#dash-shell .dashboard-page)::-webkit-scrollbar-thumb,
+body:has(#dash-shell .dashboard-page)::-webkit-scrollbar-thumb,
+html:has(#dash-shell .dashboard-page)::-webkit-scrollbar-corner,
+body:has(#dash-shell .dashboard-page)::-webkit-scrollbar-corner {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
 @media (min-width: 768px) {
+  /* Let the page grow and scroll on body — do not lock html/body to 100% + hidden */
   html:has(#dash-shell .dashboard-page) {
-    height: 100%;
-    overflow: hidden;
+    height: auto;
+    min-height: 100%;
+    overflow-x: hidden;
   }
 
+  /* Scrollable but scrollbar hidden (see global rules above) */
   body:has(#dash-shell .dashboard-page) {
-    height: 100%;
+    height: auto;
+    min-height: 100dvh;
     margin: 0;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    /* Reserve space so layout does not shift when scrollability toggles (reduces jitter) */
+    scrollbar-gutter: stable;
   }
 
   #react-entry-point:has(#dash-shell .dashboard-page) {
-    height: 100%;
-    overflow: hidden;
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
   }
 
   #react-entry-point:has(#dash-shell .dashboard-page) > div,
   div._dash-app-content:has(#dash-shell .dashboard-page) {
-    height: 100% !important;
-    min-height: 0 !important;
-    overflow: hidden !important;
+    height: auto !important;
+    min-height: 100dvh !important;
+    overflow: visible !important;
     display: flex !important;
     flex-direction: column !important;
   }
 
   #dash-shell:has(.dashboard-page) {
-    height: 100%;
-    max-height: 100%;
-    min-height: 0;
+    height: auto;
+    min-height: 100dvh;
+    max-height: none;
     flex: 1 1 auto;
-    overflow: hidden;
+    overflow: visible;
   }
 
-  /* Scroll inside #content so full dashboard (including timeline graphs) is reachable */
   #dash-shell:has(.dashboard-page) #content {
     flex: 1 1 auto;
     min-height: 0;
-    overflow-x: hidden;
-    overflow-y: auto;
+    overflow: visible;
   }
 
-  #dash-shell:has(.dashboard-page) #content > .dashboard-page {
-    flex: 1 1 auto;
+  /*
+   * page_container wraps the page — .dashboard-page is not a direct child of #content.
+   */
+  #dash-shell:has(.dashboard-page) #content > * {
+    flex: 0 0 auto;
+    min-height: min-content;
+    width: 100%;
+    max-width: 100%;
+    max-height: none;
+    overflow: visible;
+    box-sizing: border-box;
+  }
+
+  #dash-shell:has(.dashboard-page) #content .dashboard-page {
+    flex: 0 0 auto;
     min-height: min-content;
     max-height: none;
     height: auto;
     overflow: visible;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 }
