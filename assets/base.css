@@ -57,3 +57,39 @@ body:has(#dash-shell .landing-page) div._dash-app-content {
   cursor: not-allowed;
   opacity: 0.55;
 }
+
+/* Timeline graphs: fixed 50/50 columns; allow horizontal scroll if the viewport is narrower than two cells */
+.dashboard-timeline-row {
+  overflow-x: auto;
+}
+
+/* Dashboard rows that can scroll horizontally: hide scrollbars (same stack as viewport_desktop) */
+.dashboard-main-row,
+.dashboard-timeline-row {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.dashboard-main-row::-webkit-scrollbar,
+.dashboard-timeline-row::-webkit-scrollbar {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+  background: transparent !important;
+}
+
+.dashboard-main-row::-webkit-scrollbar-button,
+.dashboard-timeline-row::-webkit-scrollbar-button,
+.dashboard-main-row::-webkit-scrollbar-track,
+.dashboard-timeline-row::-webkit-scrollbar-track,
+.dashboard-main-row::-webkit-scrollbar-thumb,
+.dashboard-timeline-row::-webkit-scrollbar-thumb,
+.dashboard-main-row::-webkit-scrollbar-corner,
+.dashboard-timeline-row::-webkit-scrollbar-corner {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}

@@ -1,4 +1,4 @@
-from dash import Dash, dcc, html, page_container, callback, Output, Input, dash
+from dash import Dash, dcc, html, page_container, callback, clientside_callback, Output, Input, dash
 import callbacks.dashboard_callbacks
 import callbacks.user_callbacks  # noqa: F401 — register portfolio callbacks at startup
 from callbacks.user_callbacks import count_named_players
@@ -37,6 +37,7 @@ app.layout = html.Div(
             multiple=False,
         ),
         dcc.Interval(id="stock-prices-poll", interval=1000, n_intervals=0),
+        dcc.Store(id="plotly-resize-hook", data=0),
         html.Div(
             id="content",
             className="dash-page-slot",
@@ -90,9 +91,54 @@ def poll_game_meta(_n):
     return {"turn": turn, "players": n_players}
 
 
+# Plotly keeps stale dimensions after DPI / monitor changes until Plots.resize runs.
+clientside_callback(
+    """
+    function(_pathname) {
+        if (window.__stockTickerPlotlyResizeHook) {
+            return window.dash_clientside.no_update;
+        }
+        function resizeAllPlotly() {
+            if (!window.Plotly || !window.Plotly.Plots) return;
+            document.querySelectorAll(".js-plotly-plot").forEach(function (gd) {
+                try {
+                    window.Plotly.Plots.resize(gd);
+                } catch (e) {
+                }
+            });
+        }
+        function scheduleResize() {
+            window.requestAnimationFrame(resizeAllPlotly);
+        }
+        window.addEventListener("resize", scheduleResize);
+        window.addEventListener("load", function () {
+            setTimeout(scheduleResize, 150);
+        });
+        document.addEventListener("visibilitychange", function () {
+            if (!document.hidden) setTimeout(scheduleResize, 150);
+        });
+        if (window.ResizeObserver) {
+            var shell = document.getElementById("dash-shell");
+            if (shell) {
+                new ResizeObserver(function () {
+                    scheduleResize();
+                }).observe(shell);
+            }
+        }
+        setTimeout(scheduleResize, 400);
+        setTimeout(scheduleResize, 1200);
+        window.__stockTickerPlotlyResizeHook = true;
+        return 1;
+    }
+    """,
+    Output("plotly-resize-hook", "data"),
+    Input("url", "pathname"),
+)
+
+
 import callbacks.session_callbacks  # noqa: F401 — Save/Load session on landing page
 
 if __name__ == "__main__":
     # use_reloader=False: Werkzeug's stat-reloader parent process never serves requests, so
     # server.config stays empty; its atexit would overwrite session_state.json with defaults.
-    app.run(host="0.0.0.0", port=8050, debug=False, use_reloader=False)
+    app.run(host="0.0.0.0", port=8050, debug=True, use_reloader=False)
