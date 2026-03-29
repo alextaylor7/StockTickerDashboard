@@ -1,12 +1,24 @@
 from dash import dcc, html, register_page, dash_table
 from dash.dash_table.Format import Format, Scheme
 from constants import commodities
-from callbacks.dashboard_callbacks import build_stock_graph_figure
+from callbacks.dashboard_callbacks import (
+    build_commodity_timeline_figure,
+    build_player_net_timeline_figure,
+    build_stock_graph_figure,
+)
 
 register_page(__name__, path="/dashboard")
 
 stock_prices = {commodity: 1.00 for commodity in commodities}
 fig = build_stock_graph_figure(stock_prices)
+player_net_timeline_fig = build_player_net_timeline_figure([])
+commodity_timeline_fig = build_commodity_timeline_figure([])
+
+_GRAPH_CONFIG = {
+    "displayModeBar": True,
+    "displaylogo": False,
+    "modeBarButtonsToRemove": ["lasso2d", "select2d"],
+}
 
 _TABLE_FONT = "clamp(1rem, 1.35vw, 1.35rem)"
 _DICE_FONT = "clamp(1.25rem, 2.2vw, 2rem)"
@@ -189,11 +201,7 @@ layout = html.Div(
                                 dcc.Graph(
                                     id="stock-graph",
                                     figure=fig,
-                                    config={
-                                        "displayModeBar": True,
-                                        "displaylogo": False,
-                                        "modeBarButtonsToRemove": ["lasso2d", "select2d"],
-                                    },
+                                    config=_GRAPH_CONFIG,
                                     style={
                                         "width": "100%",
                                         "height": "100%",
@@ -220,7 +228,7 @@ layout = html.Div(
                         "width": "100%",
                         "flex": "1 1 auto",
                         "minHeight": "0",
-                        "overflow": "hidden",
+                        "overflow": "visible",
                     },
                 ),
                 html.Div(
@@ -251,6 +259,48 @@ layout = html.Div(
                     ],
                     style={"width": "100%", "padding": "0 8px"},
                 ),
+                html.Div(
+                    [
+                        dcc.Graph(
+                            id="player-net-timeline-graph",
+                            figure=player_net_timeline_fig,
+                            config=_GRAPH_CONFIG,
+                            style={
+                                "width": "100%",
+                                "minWidth": "280px",
+                                "minHeight": "280px",
+                                "flex": "1 1 400px",
+                                "maxWidth": "100%",
+                            },
+                        ),
+                        dcc.Graph(
+                            id="commodity-timeline-graph",
+                            figure=commodity_timeline_fig,
+                            config=_GRAPH_CONFIG,
+                            style={
+                                "width": "100%",
+                                "minWidth": "280px",
+                                "minHeight": "280px",
+                                "flex": "1 1 400px",
+                                "maxWidth": "100%",
+                            },
+                        ),
+                    ],
+                    style={
+                        "width": "100%",
+                        "maxWidth": "1600px",
+                        "marginLeft": "auto",
+                        "marginRight": "auto",
+                        "padding": "16px 8px 24px",
+                        "display": "flex",
+                        "flexDirection": "row",
+                        "flexWrap": "wrap",
+                        "justifyContent": "center",
+                        "alignItems": "stretch",
+                        "gap": "16px",
+                        "boxSizing": "border-box",
+                    },
+                ),
                 html.Div(id="roll-result", style={"margin-top": "12px"}),
             ],
             style={
@@ -259,8 +309,8 @@ layout = html.Div(
                 "padding": "16px clamp(12px, 2vw, 28px) 24px",
                 "box-sizing": "border-box",
                 "flex": "1 1 auto",
-                "minHeight": "0",
-                "overflow": "hidden",
+                "minHeight": "min-content",
+                "overflow": "visible",
                 "display": "flex",
                 "flexDirection": "column",
                 "width": "100%",

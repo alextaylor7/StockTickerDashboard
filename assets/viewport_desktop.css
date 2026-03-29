@@ -1,6 +1,6 @@
-/*
- * Desktop: dashboard fills one screen without double scroll.
- * Sign-in uses fixed .landing-page (sign_in.css) — no duplicate min-height rules here.
+﻿/*
+ * Desktop: dashboard uses a scrollable #content region so the full page (including
+ * timeline graphs) is reachable. Sign-in uses fixed .landing-page (sign_in.css).
  */
 
 @media (min-width: 768px) {
@@ -37,17 +37,19 @@
     overflow: hidden;
   }
 
+  /* Scroll inside #content so full dashboard (including timeline graphs) is reachable */
   #dash-shell:has(.dashboard-page) #content {
     flex: 1 1 auto;
     min-height: 0;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
 
   #dash-shell:has(.dashboard-page) #content > .dashboard-page {
     flex: 1 1 auto;
-    min-height: 0;
-    max-height: 100%;
-    height: 100%;
-    overflow: hidden;
+    min-height: min-content;
+    max-height: none;
+    height: auto;
+    overflow: visible;
   }
 }

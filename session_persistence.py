@@ -24,7 +24,8 @@ def _runtime_base_dir() -> Path:
 
 SESSION_PATH = _runtime_base_dir() / "data" / "session_state.json"
 # v1: turn_count was completed-turn count (0,1,…). v2: turn_count is the next/current turn label (1,2,…).
-VERSION = 2
+# v3: optional turn_timeline (per-turn snapshots for dashboard graphs).
+VERSION = 3
 
 _app_ref: Any = None
 
@@ -58,6 +59,36 @@ def _normalize_stock_prices(raw: Any) -> dict[str, float]:
     if not isinstance(raw, dict):
         return _default_stock_prices()
     return {c: round(float(raw.get(c, 1.00)), 2) for c in commodities}
+
+
+def _normalize_turn_timeline(raw: Any) -> list[dict[str, Any]]:
+    """List of {turn, stock_prices, player_net} for each completed turn."""
+    if not isinstance(raw, list):
+        return []
+    out: list[dict[str, Any]] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        try:
+            turn = int(item.get("turn"))
+        except (TypeError, ValueError):
+            continue
+        sp_in = item.get("stock_prices")
+        if not isinstance(sp_in, dict):
+            sp_in = {}
+        stock_prices = {c: round(float(sp_in.get(c, 1.00)), 2) for c in commodities}
+        pn_in = item.get("player_net")
+        player_net: dict[str, float] = {}
+        if isinstance(pn_in, dict):
+            for k, v in pn_in.items():
+                if not isinstance(k, str):
+                    continue
+                try:
+                    player_net[k] = round(float(v), 2)
+                except (TypeError, ValueError):
+                    pass
+        out.append({"turn": turn, "stock_prices": stock_prices, "player_net": player_net})
+    return out
 
 
 def _normalize_turn_count(raw: Any) -> int:
@@ -153,11 +184,18 @@ def build_payload(server) -> dict[str, Any]:
 
     turn_count = _normalize_next_turn_label(server.config.get("TURN_COUNT", 1))
 
+    turn_timeline = server.config.get("TURN_TIMELINE")
+    if not isinstance(turn_timeline, list):
+        turn_timeline = []
+    else:
+        turn_timeline = _normalize_turn_timeline(turn_timeline)
+
     return {
         "version": VERSION,
         "stock_prices": stock_prices,
         "user_state": user_state,
         "turn_count": turn_count,
+        "turn_timeline": turn_timeline,
     }
 
 
@@ -183,12 +221,14 @@ def apply_payload_to_server(server, data: Any) -> None:
         server.config["STOCK_PRICES"] = _default_stock_prices()
         server.config["USER_STATE"] = {}
         server.config["TURN_COUNT"] = 1
+        server.config["TURN_TIMELINE"] = []
         _sync_dashboard_module_prices(server.config["STOCK_PRICES"])
         return
 
     server.config["STOCK_PRICES"] = _normalize_stock_prices(data.get("stock_prices"))
     server.config["USER_STATE"] = _normalize_user_state_map(data.get("user_state") or {})
     server.config["TURN_COUNT"] = _turn_count_from_saved_payload(data)
+    server.config["TURN_TIMELINE"] = _normalize_turn_timeline(data.get("turn_timeline"))
     _sync_dashboard_module_prices(server.config["STOCK_PRICES"])
 
 
@@ -232,6 +272,7 @@ def load_session(app=None, server=None) -> None:
         if "USER_STATE" not in server.config:
             server.config["USER_STATE"] = {}
         server.config.setdefault("TURN_COUNT", 1)
+        server.config.setdefault("TURN_TIMELINE", [])
         _sync_dashboard_module_prices(server.config["STOCK_PRICES"])
         return
 
@@ -242,6 +283,7 @@ def load_session(app=None, server=None) -> None:
         server.config.setdefault("STOCK_PRICES", _default_stock_prices())
         server.config.setdefault("USER_STATE", {})
         server.config.setdefault("TURN_COUNT", 1)
+        server.config.setdefault("TURN_TIMELINE", [])
         _sync_dashboard_module_prices(server.config["STOCK_PRICES"])
         return
 
