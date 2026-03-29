@@ -45,6 +45,11 @@ body:has(#dash-shell .landing-page) div._dash-app-content {
   background-color: #1a1a2e;
 }
 
+/* User page: portfolio table rows are clickable to choose a commodity */
+.user-table-wrap .dash-table-container .dash-cell {
+  cursor: pointer;
+}
+
 /* Dash html.Button: ensure disabled blocks interaction if the attribute is missed */
 #roll-btn[disabled],
 #roll-btn:disabled {

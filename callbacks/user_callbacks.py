@@ -77,7 +77,7 @@ def _get_user_state_store():
     Input("sell-5000-btn", "n_clicks"),
     Input("add-cash-btn", "n_clicks"),
     Input("remove-cash-btn", "n_clicks"),
-    State("stock-select", "value"),
+    State("selected-commodity-store", "data"),
     State("cash-input", "value"),
 )
 def handle_user_actions(
@@ -158,7 +158,7 @@ def handle_user_actions(
                 current_state["balance"] = round(current_state["balance"] - amount, 2)
                 message = f"Removed ${amount:.2f} from your balance."
     else:
-        if stock is None:
+        if not stock:
             message = "Select a stock first."
         else:
             amount = int(action_id.split("-")[1])  # e.g. buy-500-btn -> 500
@@ -199,3 +199,22 @@ def display_user_info(search):
     if not name:
         return "User Profile"
     return f"{name}'s Profile"
+
+
+@callback(
+    Output("selected-commodity-store", "data"),
+    Output("selected-commodity-display", "children"),
+    Input("user-stock-table", "active_cell"),
+    State("user-stock-table", "data"),
+    prevent_initial_call=True,
+)
+def select_commodity_from_table(active_cell, data):
+    if not active_cell or data is None:
+        return no_update, no_update
+    row = active_cell.get("row")
+    if row is None or row < 0 or row >= len(data):
+        return no_update, no_update
+    commodity = data[row].get("Commodity")
+    if not commodity:
+        return no_update, no_update
+    return commodity, commodity

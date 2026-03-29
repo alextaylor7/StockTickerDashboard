@@ -139,18 +139,16 @@ layout = html.Div(
         ),
         html.Div(
             [
-                dcc.Dropdown(
-                    id="stock-select",
-                    options=[{"label": c, "value": c} for c in commodities],
-                    placeholder="Select a stock",
-                    clearable=False,
-                    searchable=False,
-                    # Default maxHeight is 200; optionHeight 35 × 6 rows = 210 — was clipping
-                    maxHeight=240,
+                dcc.Store(id="selected-commodity-store"),
+                html.Div(
+                    id="selected-commodity-display",
+                    children="",
                     style={
                         "width": "100%",
                         "marginBottom": "6px",
                         "fontSize": "max(16px, 0.95rem)",
+                        "textAlign": "center",
+                        "color": "#111",
                     },
                 ),
                 html.Div(
