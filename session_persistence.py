@@ -1,4 +1,4 @@
-"""Persist STOCK_PRICES and USER_STATE to data/session_state.json (atomic write)."""
+"""Persist STOCK_PRICES, USER_STATE, and TURN_COUNT (1-based next/current turn label) to data/session_state.json."""
 from __future__ import annotations
 
 import atexit
@@ -23,7 +23,8 @@ def _runtime_base_dir() -> Path:
 
 
 SESSION_PATH = _runtime_base_dir() / "data" / "session_state.json"
-VERSION = 1
+# v1: turn_count was completed-turn count (0,1,…). v2: turn_count is the next/current turn label (1,2,…).
+VERSION = 2
 
 _app_ref: Any = None
 
@@ -59,10 +60,80 @@ def _normalize_stock_prices(raw: Any) -> dict[str, float]:
     return {c: round(float(raw.get(c, 1.00)), 2) for c in commodities}
 
 
+def _normalize_turn_count(raw: Any) -> int:
+    try:
+        return max(0, int(raw))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _normalize_next_turn_label(raw: Any) -> int:
+    """1-based turn number shown on the Play button (minimum 1)."""
+    try:
+        return max(1, int(raw))
+    except (TypeError, ValueError):
+        return 1
+
+
+def _turn_count_from_saved_payload(data: dict) -> int:
+    """Map JSON turn_count to server TURN_COUNT (button label; 1-based)."""
+    file_ver = int(data.get("version", 1))
+    raw = data.get("turn_count")
+    if file_ver < 2:
+        completed = _normalize_turn_count(raw)
+        return max(1, completed + 1)
+    if raw is None:
+        return 1
+    return _normalize_next_turn_label(raw)
+
+
 def _sync_dashboard_module_prices(prices: dict[str, float]) -> None:
     import callbacks.dashboard_callbacks as dc
 
     dc.stock_prices = {c: prices[c] for c in commodities}
+
+
+def _sync_dashboard_module_prices_to_server(server) -> None:
+    """Copy live dashboard module prices into server.config before persisting."""
+    try:
+        import callbacks.dashboard_callbacks as dc
+
+        if isinstance(getattr(dc, "stock_prices", None), dict):
+            server.config["STOCK_PRICES"] = {
+                c: round(float(dc.stock_prices.get(c, 1.00)), 2) for c in commodities
+            }
+    except Exception:
+        pass
+
+
+def _session_payload_is_empty_game_state(payload: dict[str, Any]) -> bool:
+    """True if snapshot has no users and all commodity prices are par ($1)."""
+    us = payload.get("user_state") or {}
+    if not isinstance(us, dict) or len(us) > 0:
+        return False
+    sp = payload.get("stock_prices") or {}
+    if not isinstance(sp, dict):
+        return True
+    return all(round(float(sp.get(c, 1.0)), 2) == 1.0 for c in commodities)
+
+
+def _would_clobber_saved_session_with_empty_runtime(
+    proposed: dict[str, Any], existing_file: dict[str, Any] | None
+) -> bool:
+    """Werkzeug reloader parent exits with empty server.config — do not overwrite a real session."""
+    if not existing_file or not isinstance(existing_file, dict):
+        return False
+    if not _session_payload_is_empty_game_state(proposed):
+        return False
+    old_us = existing_file.get("user_state") or {}
+    if isinstance(old_us, dict) and len(old_us) > 0:
+        return True
+    old_sp = existing_file.get("stock_prices") or {}
+    if isinstance(old_sp, dict):
+        for c in commodities:
+            if round(float(old_sp.get(c, 1.0)), 2) != 1.0:
+                return True
+    return False
 
 
 def build_payload(server) -> dict[str, Any]:
@@ -80,10 +151,13 @@ def build_payload(server) -> dict[str, Any]:
     else:
         user_state = _normalize_user_state_map(user_state)
 
+    turn_count = _normalize_next_turn_label(server.config.get("TURN_COUNT", 1))
+
     return {
         "version": VERSION,
         "stock_prices": stock_prices,
         "user_state": user_state,
+        "turn_count": turn_count,
     }
 
 
@@ -108,21 +182,24 @@ def apply_payload_to_server(server, data: Any) -> None:
     if not isinstance(data, dict):
         server.config["STOCK_PRICES"] = _default_stock_prices()
         server.config["USER_STATE"] = {}
+        server.config["TURN_COUNT"] = 1
         _sync_dashboard_module_prices(server.config["STOCK_PRICES"])
         return
 
     server.config["STOCK_PRICES"] = _normalize_stock_prices(data.get("stock_prices"))
     server.config["USER_STATE"] = _normalize_user_state_map(data.get("user_state") or {})
+    server.config["TURN_COUNT"] = _turn_count_from_saved_payload(data)
     _sync_dashboard_module_prices(server.config["STOCK_PRICES"])
 
 
 def save_session(app=None, server=None) -> None:
-    """Write current server.config STOCK_PRICES and USER_STATE to disk."""
+    """Write current server.config STOCK_PRICES, USER_STATE, and TURN_COUNT to disk."""
     if app is not None:
         server = app.server
     if server is None:
         return
 
+    _sync_dashboard_module_prices_to_server(server)
     payload = build_payload(server)
     _atomic_write_json(SESSION_PATH, payload)
 
@@ -154,6 +231,7 @@ def load_session(app=None, server=None) -> None:
             server.config["STOCK_PRICES"] = _default_stock_prices()
         if "USER_STATE" not in server.config:
             server.config["USER_STATE"] = {}
+        server.config.setdefault("TURN_COUNT", 1)
         _sync_dashboard_module_prices(server.config["STOCK_PRICES"])
         return
 
@@ -163,6 +241,7 @@ def load_session(app=None, server=None) -> None:
     except (OSError, json.JSONDecodeError):
         server.config.setdefault("STOCK_PRICES", _default_stock_prices())
         server.config.setdefault("USER_STATE", {})
+        server.config.setdefault("TURN_COUNT", 1)
         _sync_dashboard_module_prices(server.config["STOCK_PRICES"])
         return
 
@@ -173,6 +252,30 @@ def register_shutdown_handlers(app) -> None:
     """Persist session on normal exit; crash snapshots only on fatal unhandled exceptions."""
     global _app_ref
     _app_ref = app
+
+    def _flush():
+        try:
+            import dash
+
+            app = dash.get_app()
+            if app is None:
+                app = _app_ref
+            if app is None:
+                return
+            server = app.server
+            _sync_dashboard_module_prices_to_server(server)
+            proposed = build_payload(server)
+            if SESSION_PATH.is_file():
+                try:
+                    with open(SESSION_PATH, encoding="utf-8") as f:
+                        existing = json.load(f)
+                except (OSError, json.JSONDecodeError):
+                    existing = None
+                if _would_clobber_saved_session_with_empty_runtime(proposed, existing):
+                    return
+            save_session(app)
+        except Exception:
+            pass
 
     _original_excepthook = sys.excepthook
 
@@ -191,12 +294,6 @@ def register_shutdown_handlers(app) -> None:
         _original_excepthook(exc_type, exc_value, exc_traceback)
 
     sys.excepthook = _excepthook
-
-    def _flush():
-        try:
-            save_session(_app_ref)
-        except Exception:
-            pass
 
     atexit.register(_flush)
 

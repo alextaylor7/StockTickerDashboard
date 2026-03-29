@@ -1,6 +1,7 @@
 from dash import Dash, dcc, html, page_container, callback, Output, Input, dash
 import callbacks.dashboard_callbacks
 import callbacks.user_callbacks  # noqa: F401 — register portfolio callbacks at startup
+from callbacks.user_callbacks import count_named_players
 from session_persistence import load_session, register_shutdown_handlers
 
 app = Dash(
@@ -24,6 +25,7 @@ app.layout = html.Div(
         dcc.Location(id="url", refresh="callback-nav"),
         dcc.Store(id="nav-store", storage_type="memory"),
         dcc.Store(id="stock-prices-store", storage_type="memory"),
+        dcc.Store(id="game-meta-store", storage_type="memory"),
         dcc.Store(id="session-reload", storage_type="memory"),
         dcc.Store(id="session-load-dummy", data=None),
         dcc.Download(id="session-download"),
@@ -77,7 +79,20 @@ def poll_stock_prices(_n):
     return app.server.config.get("STOCK_PRICES", {})
 
 
+@callback(
+    Output("game-meta-store", "data"),
+    Input("stock-prices-poll", "n_intervals"),
+)
+def poll_game_meta(_n):
+    users = app.server.config.get("USER_STATE")
+    n_players = count_named_players(users)
+    turn = int(app.server.config.get("TURN_COUNT", 1))
+    return {"turn": turn, "players": n_players}
+
+
 import callbacks.session_callbacks  # noqa: F401 — Save/Load session on landing page
 
-if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=8050, debug=False)
+if __name__ == "__main__":
+    # use_reloader=False: Werkzeug's stat-reloader parent process never serves requests, so
+    # server.config stays empty; its atexit would overwrite session_state.json with defaults.
+    app.run(host="0.0.0.0", port=8050, debug=False, use_reloader=False)
