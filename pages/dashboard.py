@@ -60,7 +60,7 @@ layout = html.Div(
     [
         dcc.Store(id="_initial_load", data=True),
         dcc.Store(id="turn-sequence-store", data=None),
-        dcc.Interval(id="turn-roll-interval", interval=1500, n_intervals=0, disabled=True),
+        dcc.Interval(id="turn-roll-interval", interval=1000, n_intervals=0, disabled=True),
         html.Div(
             [
                 html.Div(
@@ -68,19 +68,60 @@ layout = html.Div(
                         html.Div(
                             id="player-counter-display",
                             children="Players: 0",
-                            style={**_HEADER_COUNTER, "textAlign": "left"},
+                            style={
+                                **_HEADER_COUNTER,
+                                "textAlign": "left",
+                                "flex": "1 1 0",
+                                "minWidth": "0",
+                            },
                         ),
                         html.H1(
                             "Stock Ticker",
                             style={
                                 "text-align": "center",
                                 "margin": "0",
-                                "flex": "1 1 auto",
+                                "flex": "1 1 0",
                                 "minWidth": "0",
                                 "font-size": _TITLE_SIZE,
                                 "font-weight": "700",
                                 "letter-spacing": "0.02em",
                                 "color": "#1a1a1a",
+                            },
+                        ),
+                        html.Div(
+                            [
+                                html.Button(
+                                    "\u2699",
+                                    id="settings-gear-btn",
+                                    n_clicks=0,
+                                    title="Game settings",
+                                    className="dashboard-settings-gear",
+                                    style={
+                                        "margin": "0",
+                                        "marginLeft": "auto",
+                                        "padding": "0",
+                                        "width": "44px",
+                                        "height": "44px",
+                                        "border": "none",
+                                        "borderRadius": "10px",
+                                        "backgroundColor": "#ffffff",
+                                        "boxShadow": "0 2px 8px rgba(0,0,0,0.08)",
+                                        "cursor": "pointer",
+                                        "fontSize": "clamp(1.35rem, 3vw, 1.65rem)",
+                                        "lineHeight": "1",
+                                        "color": "#333",
+                                        "display": "flex",
+                                        "alignItems": "center",
+                                        "justifyContent": "center",
+                                    },
+                                ),
+                            ],
+                            style={
+                                "flex": "1 1 0",
+                                "minWidth": "0",
+                                "display": "flex",
+                                "justifyContent": "flex-end",
+                                "alignItems": "center",
                             },
                         ),
                     ],
@@ -91,6 +132,151 @@ layout = html.Div(
                         "width": "100%",
                         "marginBottom": "12px",
                     },
+                ),
+                html.Div(
+                    id="settings-modal",
+                    style={
+                        "display": "none",
+                        "position": "fixed",
+                        "inset": "0",
+                        "zIndex": "1000",
+                        "alignItems": "center",
+                        "justifyContent": "center",
+                        "padding": "24px",
+                        "boxSizing": "border-box",
+                    },
+                    children=[
+                        html.Button(
+                            id="settings-modal-backdrop-btn",
+                            n_clicks=0,
+                            style={
+                                "position": "absolute",
+                                "inset": "0",
+                                "border": "none",
+                                "margin": "0",
+                                "padding": "0",
+                                "background": "rgba(0,0,0,0.45)",
+                                "cursor": "pointer",
+                            },
+                            title="Close",
+                        ),
+                        html.Div(
+                            style={
+                                "position": "relative",
+                                "zIndex": "1",
+                                "background": "#ffffff",
+                                "borderRadius": "12px",
+                                "padding": "22px 26px",
+                                "minWidth": "min(100%, 380px)",
+                                "maxWidth": "100%",
+                                "boxShadow": "0 16px 48px rgba(0,0,0,0.22)",
+                                "boxSizing": "border-box",
+                                "fontFamily": "system-ui, Segoe UI, sans-serif",
+                            },
+                            children=[
+                                html.Div(
+                                    [
+                                        html.H2(
+                                            "Game settings",
+                                            style={
+                                                "margin": "0",
+                                                "fontSize": "clamp(1.15rem, 2.5vw, 1.35rem)",
+                                                "fontWeight": "700",
+                                                "color": "#1a1a1a",
+                                            },
+                                        ),
+                                        html.Button(
+                                            "\u00d7",
+                                            id="settings-modal-close-btn",
+                                            n_clicks=0,
+                                            title="Close",
+                                            style={
+                                                "border": "none",
+                                                "background": "transparent",
+                                                "cursor": "pointer",
+                                                "fontSize": "1.75rem",
+                                                "lineHeight": "1",
+                                                "padding": "4px 8px",
+                                                "color": "#555",
+                                            },
+                                        ),
+                                    ],
+                                    style={
+                                        "display": "flex",
+                                        "alignItems": "center",
+                                        "justifyContent": "space-between",
+                                        "marginBottom": "20px",
+                                        "gap": "12px",
+                                    },
+                                ),
+                                html.Div(
+                                    [
+                                        html.Span(
+                                            "Turn Rolls:",
+                                            style={
+                                                "fontWeight": "600",
+                                                "fontSize": "clamp(0.95rem, 2vw, 1.05rem)",
+                                                "color": "#1a1a1a",
+                                                "marginRight": "10px",
+                                            },
+                                        ),
+                                        dcc.Input(
+                                            id="turn-roll-sec-input",
+                                            type="number",
+                                            min=1,
+                                            max=600,
+                                            step=1,
+                                            value=1,
+                                            debounce=True,
+                                            style={
+                                                "width": "72px",
+                                                "padding": "8px 10px",
+                                                "fontSize": "1rem",
+                                                "borderRadius": "8px",
+                                                "border": "1px solid #ccc",
+                                                "boxSizing": "border-box",
+                                            },
+                                        ),
+                                        html.Span(
+                                            "second intervals",
+                                            style={
+                                                "marginLeft": "10px",
+                                                "fontSize": "clamp(0.95rem, 2vw, 1.05rem)",
+                                                "color": "#333",
+                                            },
+                                        ),
+                                    ],
+                                    style={
+                                        "display": "flex",
+                                        "flexWrap": "wrap",
+                                        "alignItems": "center",
+                                        "marginBottom": "22px",
+                                    },
+                                ),
+                                html.Div(
+                                    [
+                                        html.Button(
+                                            "Apply",
+                                            id="settings-apply-btn",
+                                            n_clicks=0,
+                                            style={
+                                                "padding": "10px 22px",
+                                                "fontSize": "1rem",
+                                                "fontWeight": "600",
+                                                "border": "none",
+                                                "borderRadius": "8px",
+                                                "backgroundColor": "#2563eb",
+                                                "color": "#ffffff",
+                                                "cursor": "pointer",
+                                                "boxShadow": "0 2px 10px rgba(37, 99, 235, 0.35)",
+                                            },
+                                        ),
+                                    ],
+                                    style={"display": "flex", "justifyContent": "flex-end"},
+                                ),
+                            ],
+                        ),
+                    ],
                 ),
                 html.Div(
                     [
