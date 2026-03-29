@@ -189,9 +189,9 @@ layout = html.Div(
                     [
                         html.Div(
                             [
+                                _sell_btn(100, "sell-100-btn"),
                                 _sell_btn(500, "sell-500-btn"),
                                 _sell_btn(1000, "sell-1000-btn"),
-                                _sell_btn(2000, "sell-2000-btn"),
                                 _sell_btn(5000, "sell-5000-btn"),
                             ],
                             className="user-trade-grid",
@@ -199,9 +199,9 @@ layout = html.Div(
                         ),
                         html.Div(
                             [
+                                _buy_btn(100, "buy-100-btn"),
                                 _buy_btn(500, "buy-500-btn"),
                                 _buy_btn(1000, "buy-1000-btn"),
-                                _buy_btn(2000, "buy-2000-btn"),
                                 _buy_btn(5000, "buy-5000-btn"),
                             ],
                             className="user-trade-grid",
