@@ -17,9 +17,21 @@ from callbacks.user_callbacks import ANONYMOUS_USER_KEY, _net_value, count_named
 stock_prices = {commodity: 1.00 for commodity in commodities}
 
 
+def _dashboard_table_rows(stock_prices_dict: dict) -> list[dict]:
+    """Table shows Price as value×100 and Price/500 as value×500; storage stays in dollars."""
+    return [
+        {
+            "Commodity": k,
+            "Price": int(round(float(v) * 100)),
+            "PriceX500": int(round(float(v) * 500)),
+        }
+        for k, v in stock_prices_dict.items()
+    ]
+
+
 def build_stock_graph_figure(stock_prices_dict):
     x = list(commodities)
-    y = [stock_prices_dict[c] for c in commodities]
+    y = [stock_prices_dict[c] * 100 for c in commodities]
     colors = [COMMODITY_BAR_COLORS[c] for c in commodities]
     fig = go.Figure()
     fig.add_trace(
@@ -37,11 +49,11 @@ def build_stock_graph_figure(stock_prices_dict):
         font=dict(color=CHART_TEXT, size=16),
         margin=dict(l=56, r=28, t=64, b=52),
         yaxis=dict(
-            range=[0, 2],
+            range=[0, 200],
             gridcolor="rgba(255,255,255,0.15)",
             zerolinecolor="rgba(255,255,255,0.25)",
             tickfont=dict(size=16),
-            title=dict(text="Price", font=dict(size=16)),
+            title=dict(text="Price (×100)", font=dict(size=16)),
         ),
         xaxis=dict(
             gridcolor="rgba(255,255,255,0.1)",
@@ -109,7 +121,7 @@ def build_player_net_timeline_figure(timeline: list) -> go.Figure:
 def build_commodity_timeline_figure(timeline: list) -> go.Figure:
     fig = go.Figure()
     if not isinstance(timeline, list) or len(timeline) == 0:
-        fig.update_layout(**_timeline_base_layout("Commodity Prices", "Price ($)"))
+        fig.update_layout(**_timeline_base_layout("Commodity Prices", "Price (×100)"))
         return fig
 
     turns = [p["turn"] for p in timeline if isinstance(p, dict)]
@@ -120,7 +132,8 @@ def build_commodity_timeline_figure(timeline: list) -> go.Figure:
                 ys.append(None)
                 continue
             sp = p.get("stock_prices") if isinstance(p.get("stock_prices"), dict) else {}
-            ys.append(sp.get(c))
+            raw = sp.get(c)
+            ys.append(raw * 100 if raw is not None else None)
         line_color = COMMODITY_TIMELINE_LINE_COLORS.get(c, "#cccccc")
         fig.add_trace(
             go.Scatter(
@@ -137,7 +150,7 @@ def build_commodity_timeline_figure(timeline: list) -> go.Figure:
                 connectgaps=False,
             )
         )
-    fig.update_layout(**_timeline_base_layout("Commodity Prices", "Price ($)"))
+    fig.update_layout(**_timeline_base_layout("Commodity Prices", "Price (×100)"))
     return fig
 
 
@@ -188,10 +201,10 @@ def _roll_once_outputs():
     _apply_one_roll(stock, action, value)
     fig = build_stock_graph_figure(stock_prices)
     return (
-        [{"Commodity": k, "Price": v} for k, v in stock_prices.items()],
+        _dashboard_table_rows(stock_prices),
         stock,
         action,
-        f"{value:.2f}",
+        str(int(round(value * 100))),
         fig,
     )
 
@@ -286,7 +299,7 @@ def _hydrate_dashboard_from_server():
     )
     set_props("turn-roll-interval", {"interval": ms})
     return (
-        [{"Commodity": k, "Price": v} for k, v in stock_prices.items()],
+        _dashboard_table_rows(stock_prices),
         "",
         "",
         "",
