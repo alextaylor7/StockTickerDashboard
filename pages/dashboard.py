@@ -2,6 +2,7 @@ from dash import dcc, html, register_page, dash_table
 from dash.dash_table.Format import Format, Scheme
 from constants import commodities
 from callbacks.dashboard_callbacks import (
+    _dashboard_table_rows,
     build_commodity_timeline_figure,
     build_player_net_timeline_figure,
     build_stock_graph_figure,
@@ -290,10 +291,16 @@ layout = html.Div(
                                             "name": "Price",
                                             "id": "Price",
                                             "type": "numeric",
-                                            "format": Format(precision=2, scheme=Scheme.fixed),
+                                            "format": Format(precision=0, scheme=Scheme.fixed),
+                                        },
+                                        {
+                                            "name": "Price/500",
+                                            "id": "PriceX500",
+                                            "type": "numeric",
+                                            "format": Format(precision=0, scheme=Scheme.fixed),
                                         },
                                     ],
-                                    data=[{"Commodity": k, "Price": v} for k, v in stock_prices.items()],
+                                    data=_dashboard_table_rows(stock_prices),
                                     style_table={
                                         "width": "100%",
                                         "height": "100%",
