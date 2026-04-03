@@ -1,12 +1,9 @@
 import logging
 import socket
 
-from dash import Dash, dcc, html, page_container, callback, clientside_callback, Output, Input, dash
+from dash import Dash, dcc, html, page_container, Output, Input, dash
 from waitress import serve
 
-import callbacks.dashboard_callbacks
-import callbacks.user_callbacks  # noqa: F401 — register portfolio callbacks at startup
-from callbacks.user_callbacks import count_named_players
 import constants
 from session_persistence import load_session, register_shutdown_handlers
 
@@ -21,6 +18,10 @@ app = Dash(
         },
     ],
 )
+
+from callbacks.app_ref import bind_app
+
+bind_app(app)
 
 load_session(app)
 register_shutdown_handlers(app)
@@ -72,11 +73,20 @@ app.layout = html.Div(
     },
 )
 
+# Register callbacks only after the Dash app exists (Dash 3 requires a bound app instance).
+# Page modules must not import these at load time — Dash imports pages during __init__ before the app is registered.
+import callbacks.dashboard_callbacks  # noqa: F401
+import callbacks.user_callbacks  # noqa: F401
+import callbacks.session_callbacks  # noqa: F401
+import callbacks.sign_in_callbacks  # noqa: F401
+from callbacks.user_callbacks import count_named_players
+
+
 # Callback to update the URL based on `dcc.Store`
-@callback(
+@app.callback(
     Output("url", "pathname"),
     Input("nav-store", "data"),
-    prevent_initial_call=True
+    prevent_initial_call=True,
 )
 def navigate(page):
     if page:
@@ -84,7 +94,7 @@ def navigate(page):
     return dash.no_update
 
 
-@callback(
+@app.callback(
     Output("stock-prices-store", "data"),
     Input("stock-prices-poll", "n_intervals"),
 )
@@ -92,7 +102,7 @@ def poll_stock_prices(_n):
     return app.server.config.get("STOCK_PRICES", {})
 
 
-@callback(
+@app.callback(
     Output("game-meta-store", "data"),
     Input("stock-prices-poll", "n_intervals"),
 )
@@ -104,7 +114,7 @@ def poll_game_meta(_n):
 
 
 # Plotly keeps stale dimensions after DPI / monitor changes until Plots.resize runs.
-clientside_callback(
+app.clientside_callback(
     """
     function(_pathname) {
         if (window.__stockTickerPlotlyResizeHook) {
@@ -146,9 +156,6 @@ clientside_callback(
     Output("plotly-resize-hook", "data"),
     Input("url", "pathname"),
 )
-
-
-import callbacks.session_callbacks  # noqa: F401 — Save/Load session on landing page
 
 LISTEN_HOST = "0.0.0.0"
 LISTEN_PORT = 8050

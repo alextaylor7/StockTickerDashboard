@@ -1,7 +1,5 @@
 from dash import dcc, html, register_page
 
-import callbacks.sign_in_callbacks  # noqa: F401 — navigation callback
-
 register_page(__name__, path="/")
 
 layout = html.Div(

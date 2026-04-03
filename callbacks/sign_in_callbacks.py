@@ -1,5 +1,7 @@
 import dash
-from dash import Input, Output, callback
+from dash import Input, Output
+
+from callbacks.app_ref import callback
 
 
 @callback(

@@ -1,6 +1,8 @@
 import urllib
 import dash
-from dash import Input, Output, State, callback, no_update
+from dash import Input, Output, State, no_update
+
+from callbacks.app_ref import callback
 from constants import commodities, user_starting_balance
 
 ANONYMOUS_USER_KEY = "__anonymous__"
