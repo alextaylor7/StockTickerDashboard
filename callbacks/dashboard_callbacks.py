@@ -10,6 +10,7 @@ from constants import (
     COMMODITY_BAR_COLORS,
     COMMODITY_TIMELINE_LINE_COLORS,
     commodities,
+    user_starting_balance,
 )
 
 from session_persistence import save_session, _normalize_turn_roll_interval_sec
@@ -80,7 +81,7 @@ def _timeline_base_layout(title: str, y_title: str):
         margin=dict(l=56, r=28, t=64, b=52),
         legend=dict(font=dict(color=CHART_TEXT, size=14)),
         xaxis=dict(
-            title=dict(text="Completed Turn", font=dict(size=14)),
+            title=dict(text="Turn", font=dict(size=14)),
             gridcolor="rgba(255,255,255,0.15)",
             tickfont=dict(size=14),
         ),
@@ -160,6 +161,34 @@ def build_commodity_timeline_figure(timeline: list) -> go.Figure:
         )
     fig.update_layout(**_timeline_base_layout("Commodity Prices", "Price (×100)"))
     return fig
+
+
+def _turn_zero_timeline_entry(server):
+    """Starting snapshot: par prices, each named player at starting balance and zero shares."""
+    par_prices = {c: round(1.00, 2) for c in commodities}
+    zero_stocks = {c: 0 for c in commodities}
+    user_state = server.config.get("USER_STATE") or {}
+    player_net: dict[str, float] = {}
+    for name in named_player_names(user_state):
+        player_net[name] = _net_value(
+            float(user_starting_balance),
+            zero_stocks,
+            par_prices,
+        )
+    return {"turn": 0, "stock_prices": par_prices, "player_net": player_net}
+
+
+def _timeline_for_figures(server):
+    tl = server.config.get("TURN_TIMELINE")
+    if not isinstance(tl, list):
+        tl = []
+    if tl and isinstance(tl[0], dict):
+        try:
+            if int(tl[0].get("turn")) == 0:
+                return tl
+        except (TypeError, ValueError):
+            pass
+    return [_turn_zero_timeline_entry(server), *tl]
 
 
 def roll_dice():
@@ -280,9 +309,7 @@ def _increment_turn_and_save():
 
 def _timeline_figures_from_server():
     server = dash.get_app().server
-    tl = server.config.get("TURN_TIMELINE")
-    if not isinstance(tl, list):
-        tl = []
+    tl = _timeline_for_figures(server)
     return build_player_net_timeline_figure(tl), build_commodity_timeline_figure(tl)
 
 
