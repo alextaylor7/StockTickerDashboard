@@ -27,7 +27,8 @@ $venvPython = Get-VenvPython -Path $VenvDir
 
 Write-Host "Installing/upgrading build dependencies ..."
 & $venvPython -m pip install --upgrade pip
-& $venvPython -m pip install dash plotly pyinstaller
+& $venvPython -m pip install pyinstaller
+& $venvPython -m pip install -r requirements.txt
 
 Write-Host "Cleaning previous build output ..."
 if (Test-Path "build") { Remove-Item -Recurse -Force "build" }
@@ -40,6 +41,7 @@ Write-Host "Building executable with PyInstaller ..."
     --clean `
     --name $AppName `
     --onedir `
+    --hidden-import waitress `
     --add-data "assets;assets" `
     --add-data "pages;pages" `
     --add-data "callbacks;callbacks" `

@@ -1,5 +1,15 @@
-﻿commodities = ["Gold", "Silver", "Bonds", "Oil", "Industrials", "Grain"]
+commodities = ["Gold", "Silver", "Bonds", "Oil", "Industrials", "Grain"]
 user_starting_balance = 5000
+
+# Client poll interval for shared stock prices / game meta (ms). Higher values reduce
+# Dash HTTP load per phone on LAN parties (see main.py dcc.Interval).
+PRICE_POLL_INTERVAL_MS = 2500
+
+# Waitress WSGI thread pool size (single process; do not use multiple Waitress workers).
+WAITRESS_THREADS = 16
+
+# Delay before writing session after a trade burst (debounced disk save).
+SESSION_SAVE_DEBOUNCE_SEC = 0.75
 
 # Dashboard bar chart: one RGB color per commodity (Plotly rgb strings)
 COMMODITY_BAR_COLORS = {

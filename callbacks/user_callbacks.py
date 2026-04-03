@@ -205,9 +205,9 @@ def handle_user_actions(
     all_users[user_key] = current_state
     net_value = _net_value(current_state["balance"], current_state["stocks"], stock_prices)
 
-    from session_persistence import save_session
+    from session_persistence import schedule_debounced_save
 
-    save_session(dash.get_app())
+    schedule_debounced_save(dash.get_app())
 
     return (
         _to_table_data(current_state["stocks"]),
