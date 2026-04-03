@@ -5,16 +5,16 @@ from components.dashboard_main_row import build_dashboard_main_row
 from components.dashboard_modals import build_players_modal, build_settings_modal
 from components.dashboard_play_section import build_play_turn_section
 from components.dashboard_timeline_row import build_timeline_row
-from constants import COMMODITIES
 from dashboard_charts import (
     build_commodity_timeline_figure,
     build_player_net_timeline_figure,
     build_stock_graph_figure,
 )
+from runtime.live_stock_prices import par_prices_copy
 
 register_page(__name__, path="/dashboard")
 
-stock_prices = {commodity: 1.00 for commodity in COMMODITIES}
+stock_prices = par_prices_copy()
 fig = build_stock_graph_figure(stock_prices)
 player_net_timeline_fig = build_player_net_timeline_figure([])
 commodity_timeline_fig = build_commodity_timeline_figure([])
