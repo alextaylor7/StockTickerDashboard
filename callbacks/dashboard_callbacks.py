@@ -4,113 +4,52 @@ import dash
 from dash import Input, Output, State, no_update, set_props, ALL, html
 
 from callbacks.app_ref import callback
-import random
-from constants import commodities, user_starting_balance
+from constants import COMMODITIES
 
 from dashboard_charts import (
-    _dashboard_table_rows,
+    dashboard_table_rows,
     build_commodity_timeline_figure,
     build_player_net_timeline_figure,
     build_stock_graph_figure,
 )
+from domain.dice import roll_dice
+from domain.roll_effects import apply_roll_to_state
+from domain.timeline import timeline_for_figures, turn_baseline_stock_prices
+from domain.user_state import (
+    ANONYMOUS_USER_KEY,
+    count_named_players,
+    named_player_names,
+    net_value,
+)
+from callbacks.user_callbacks import remove_named_player_everywhere
+from runtime.live_stock_prices import live_prices, normalize_live_prices_round_trip, replace_live_prices
 from session_persistence import (
     save_session,
     _normalize_game_max_turns,
     _normalize_turn_roll_interval_sec,
 )
-from callbacks.user_callbacks import (
-    ANONYMOUS_USER_KEY,
-    _net_value,
-    count_named_players,
-    named_player_names,
-    remove_named_player_everywhere,
-)
-
-# Initialize stock prices with default values
-stock_prices = {commodity: 1.00 for commodity in commodities}
 
 
 def _turn_baseline_stock_prices(server) -> dict:
     """Dollar prices at end of last completed turn; par $1.00 when timeline is empty."""
-    tl = server.config.get("TURN_TIMELINE")
-    if not isinstance(tl, list) or len(tl) == 0:
-        return {c: round(1.00, 2) for c in commodities}
-    last = tl[-1]
-    if not isinstance(last, dict):
-        return {c: round(1.00, 2) for c in commodities}
-    sp = last.get("stock_prices")
-    if not isinstance(sp, dict):
-        return {c: round(1.00, 2) for c in commodities}
-    return {c: round(float(sp.get(c, 1.00)), 2) for c in commodities}
-
-
-def _turn_zero_timeline_entry(server):
-    """Starting snapshot: par prices, each named player at starting balance and zero shares."""
-    par_prices = {c: round(1.00, 2) for c in commodities}
-    zero_stocks = {c: 0 for c in commodities}
-    user_state = server.config.get("USER_STATE") or {}
-    player_net: dict[str, float] = {}
-    for name in named_player_names(user_state):
-        player_net[name] = _net_value(
-            float(user_starting_balance),
-            zero_stocks,
-            par_prices,
-        )
-    return {"turn": 0, "stock_prices": par_prices, "player_net": player_net}
+    return turn_baseline_stock_prices(server.config.get("TURN_TIMELINE"))
 
 
 def _timeline_for_figures(server):
-    tl = server.config.get("TURN_TIMELINE")
-    if not isinstance(tl, list):
-        tl = []
-    if tl and isinstance(tl[0], dict):
-        try:
-            if int(tl[0].get("turn")) == 0:
-                return tl
-        except (TypeError, ValueError):
-            pass
-    return [_turn_zero_timeline_entry(server), *tl]
-
-
-def roll_dice():
-    stock = random.choice(commodities)
-    action = random.choice(["Up", "Down", "Dividend"])
-    value = random.choice([0.05, 0.10, 0.20])
-    return stock, action, value
+    return timeline_for_figures(
+        server.config.get("TURN_TIMELINE"),
+        server.config.get("USER_STATE") or {},
+    )
 
 
 def _apply_one_roll(stock, action, value):
-    """Apply one dice outcome to module globals, USER_STATE, and server.config; persist."""
-    global stock_prices
-
-    if action == "Up":
-        stock_prices[stock] = round(stock_prices[stock] + value, 2)
-    elif action == "Down":
-        stock_prices[stock] = round(max(0, stock_prices[stock] - value), 2)
-
+    """Apply one dice outcome to live_prices, USER_STATE, and server.config; persist."""
     server = dash.get_app().server
     user_state = server.config.setdefault("USER_STATE", {})
-
-    if action == "Dividend" and stock_prices[stock] >= 1.00:
-        for _username, state in user_state.items():
-            if isinstance(state, dict) and isinstance(state.get("stocks"), dict):
-                shares = int(state["stocks"].get(stock, 0))
-                cash = round(shares * value, 2)
-                state["balance"] = round(float(state.get("balance", 0)) + cash, 2)
-
-    if stock_prices[stock] >= 2.00:
-        for _username, state in user_state.items():
-            if isinstance(state, dict) and isinstance(state.get("stocks"), dict):
-                state["stocks"][stock] = int(state["stocks"].get(stock, 0)) * 2
-        stock_prices[stock] = 1.00
-    elif stock_prices[stock] <= 0:
-        for _username, state in user_state.items():
-            if isinstance(state, dict) and isinstance(state.get("stocks"), dict):
-                state["stocks"][stock] = 0
-        stock_prices[stock] = 1.00
-
-    stock_prices = {commodity: round(price, 2) for commodity, price in stock_prices.items()}
-    server.config["STOCK_PRICES"] = stock_prices
+    apply_roll_to_state(live_prices, user_state, stock, action, value)
+    server.config["STOCK_PRICES"] = {
+        c: round(float(live_prices.get(c, 1.00)), 2) for c in COMMODITIES
+    }
     save_session(dash.get_app())
 
 
@@ -124,8 +63,8 @@ def _roll_once_outputs():
         server.config["CURRENT_TURN_ROLLS"] = rolls
     rolls.append({"commodity": stock, "action": action, "value": value_str})
     _apply_one_roll(stock, action, value)
-    fig = build_stock_graph_figure(stock_prices)
-    return _dashboard_table_rows(stock_prices, _turn_baseline_stock_prices(server)), fig
+    fig = build_stock_graph_figure(live_prices)
+    return dashboard_table_rows(live_prices, _turn_baseline_stock_prices(server)), fig
 
 
 def _player_roll_count() -> int:
@@ -159,14 +98,13 @@ def _sequence_remaining(seq_data):
 
 def _append_turn_timeline_snapshot():
     """Record completed-turn prices and player net values (before TURN_COUNT increments)."""
-    global stock_prices
     server = dash.get_app().server
     completed_turn = int(server.config.get("TURN_COUNT", 1))
     stored = server.config.get("STOCK_PRICES")
     if isinstance(stored, dict):
-        prices = {c: round(float(stored.get(c, 1.00)), 2) for c in commodities}
+        prices = {c: round(float(stored.get(c, 1.00)), 2) for c in COMMODITIES}
     else:
-        prices = {c: round(float(stock_prices.get(c, 1.00)), 2) for c in commodities}
+        prices = {c: round(float(live_prices.get(c, 1.00)), 2) for c in COMMODITIES}
 
     user_state = server.config.get("USER_STATE") or {}
     player_net: dict[str, float] = {}
@@ -176,7 +114,7 @@ def _append_turn_timeline_snapshot():
         stocks = state.get("stocks")
         if not isinstance(stocks, dict):
             stocks = {}
-        player_net[username] = _net_value(
+        player_net[username] = net_value(
             float(state.get("balance", 0)),
             stocks,
             prices,
@@ -248,17 +186,14 @@ def _turn_rolls_feed_children(server=None):
 
 
 def _hydrate_dashboard_from_server():
-    """Rebuild module stock_prices and figure from server.config (after load or navigation)."""
-    global stock_prices
+    """Rebuild live_prices and figures from server.config (after load or navigation)."""
     stored_prices = dash.get_app().server.config.get("STOCK_PRICES")
     if isinstance(stored_prices, dict):
-        stock_prices = {
-            commodity: round(float(stored_prices.get(commodity, 1.00)), 2) for commodity in commodities
-        }
+        replace_live_prices(stored_prices)
     else:
-        stock_prices = {commodity: round(price, 2) for commodity, price in stock_prices.items()}
+        normalize_live_prices_round_trip()
 
-    fig = build_stock_graph_figure(stock_prices)
+    fig = build_stock_graph_figure(live_prices)
     pn_fig, co_fig = _timeline_figures_from_server()
     ms = (
         _normalize_turn_roll_interval_sec(
@@ -269,7 +204,7 @@ def _hydrate_dashboard_from_server():
     set_props("turn-roll-interval", {"interval": ms})
     server = dash.get_app().server
     return (
-        _dashboard_table_rows(stock_prices, _turn_baseline_stock_prices(server)),
+        dashboard_table_rows(live_prices, _turn_baseline_stock_prices(server)),
         fig,
         None,
         True,
@@ -552,8 +487,6 @@ def remove_named_player_from_modal(_n_remove_clicks, pathname):
     prevent_initial_call=False,
 )
 def update_dashboard(n_roll, _n_interval, _initial_load_data, _session_reload, pathname, seq_data):
-    global stock_prices
-
     ctx = dash.callback_context
     tp = ctx.triggered_prop_ids
 

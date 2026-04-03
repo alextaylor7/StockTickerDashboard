@@ -1,25 +1,16 @@
 import urllib
+
 import dash
 from dash import Input, Output, State, no_update
 
 from callbacks.app_ref import callback
-from constants import commodities, user_starting_balance
-
-ANONYMOUS_USER_KEY = "__anonymous__"
-
-
-def count_named_players(user_state) -> int:
-    """Count USER_STATE keys except the shared anonymous portfolio."""
-    if not isinstance(user_state, dict):
-        return 0
-    return sum(1 for k in user_state if k != ANONYMOUS_USER_KEY)
-
-
-def named_player_names(user_state) -> list[str]:
-    """Sorted USER_STATE keys excluding the shared anonymous portfolio (modal list source)."""
-    if not isinstance(user_state, dict):
-        return []
-    return sorted(k for k in user_state if k != ANONYMOUS_USER_KEY)
+from constants import COMMODITIES
+from domain.user_state import (
+    ANONYMOUS_USER_KEY,
+    default_user_state,
+    normalize_user_state,
+    net_value as portfolio_net_value,
+)
 
 
 def remove_named_player_everywhere(username: str) -> None:
@@ -49,36 +40,13 @@ def _parse_username(search):
     return query_params.get("name", [""])[0].strip()
 
 
-def _default_user_state():
-    return {
-        "balance": float(user_starting_balance),
-        "stocks": {commodity: 0 for commodity in commodities}
-    }
-
-
-def _normalize_user_state(user_state):
-    normalized_stocks = {commodity: 0 for commodity in commodities}
-    for commodity in commodities:
-        normalized_stocks[commodity] = int(user_state.get("stocks", {}).get(commodity, 0))
-
-    return {
-        "balance": round(float(user_state.get("balance", user_starting_balance)), 2),
-        "stocks": normalized_stocks
-    }
-
-
 def _get_stock_prices():
     stored_prices = dash.get_app().server.config.get("STOCK_PRICES", {})
-    return {commodity: round(float(stored_prices.get(commodity, 1.00)), 2) for commodity in commodities}
+    return {commodity: round(float(stored_prices.get(commodity, 1.00)), 2) for commodity in COMMODITIES}
 
 
 def _to_table_data(stocks):
-    return [{"Commodity": commodity, "Shares": stocks.get(commodity, 0)} for commodity in commodities]
-
-
-def _net_value(balance, stocks, stock_prices):
-    holdings_value = sum(stocks.get(commodity, 0) * stock_prices.get(commodity, 1.00) for commodity in commodities)
-    return round(balance + holdings_value, 2)
+    return [{"Commodity": commodity, "Shares": stocks.get(commodity, 0)} for commodity in COMMODITIES]
 
 
 def _get_user_state_store():
@@ -134,9 +102,9 @@ def handle_user_actions(
     all_users = _get_user_state_store()
 
     if user_key not in all_users:
-        all_users[user_key] = _default_user_state()
+        all_users[user_key] = default_user_state()
     else:
-        all_users[user_key] = _normalize_user_state(all_users[user_key])
+        all_users[user_key] = normalize_user_state(all_users[user_key])
 
     current_state = all_users[user_key]
     stock_prices = _get_stock_prices()
@@ -144,7 +112,7 @@ def handle_user_actions(
     # Hydration vs poll vs actions (URL takes precedence if both fire on initial load)
     message = ""
     if url_hydrate:
-        net_value = _net_value(current_state["balance"], current_state["stocks"], stock_prices)
+        net_value = portfolio_net_value(current_state["balance"], current_state["stocks"], stock_prices)
         return (
             _to_table_data(current_state["stocks"]),
             f"Balance: ${current_state['balance']:.2f}",
@@ -153,7 +121,7 @@ def handle_user_actions(
         )
 
     if poll_refresh:
-        net_value = _net_value(current_state["balance"], current_state["stocks"], stock_prices)
+        net_value = portfolio_net_value(current_state["balance"], current_state["stocks"], stock_prices)
         return (
             _to_table_data(current_state["stocks"]),
             f"Balance: ${current_state['balance']:.2f}",
@@ -205,7 +173,7 @@ def handle_user_actions(
                 message = f"Sold {amount} shares of {stock} for ${cost:.2f}"
 
     all_users[user_key] = current_state
-    net_value = _net_value(current_state["balance"], current_state["stocks"], stock_prices)
+    net_value = portfolio_net_value(current_state["balance"], current_state["stocks"], stock_prices)
 
     from session_persistence import schedule_debounced_save
 

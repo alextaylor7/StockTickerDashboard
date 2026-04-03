@@ -11,7 +11,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from constants import DEFAULT_GAME_MAX_TURNS, SESSION_SAVE_DEBOUNCE_SEC, commodities
+from constants import COMMODITIES, DEFAULT_GAME_MAX_TURNS, SESSION_SAVE_DEBOUNCE_SEC
+from domain.user_state import normalize_user_state
+from runtime.live_stock_prices import live_prices, replace_live_prices
 
 
 def _runtime_base_dir() -> Path:
@@ -39,13 +41,7 @@ def _ensure_data_dir() -> None:
 
 
 def _default_stock_prices() -> dict[str, float]:
-    return {c: 1.00 for c in commodities}
-
-
-def _normalize_user_state(user_state: dict) -> dict:
-    from callbacks.user_callbacks import _normalize_user_state as norm
-
-    return norm(user_state)
+    return {c: 1.00 for c in COMMODITIES}
 
 
 def _normalize_user_state_map(raw: dict) -> dict[str, dict]:
@@ -55,14 +51,14 @@ def _normalize_user_state_map(raw: dict) -> dict[str, dict]:
     for key, val in raw.items():
         if not isinstance(key, str) or not isinstance(val, dict):
             continue
-        out[key] = _normalize_user_state(val)
+        out[key] = normalize_user_state(val)
     return out
 
 
 def _normalize_stock_prices(raw: Any) -> dict[str, float]:
     if not isinstance(raw, dict):
         return _default_stock_prices()
-    return {c: round(float(raw.get(c, 1.00)), 2) for c in commodities}
+    return {c: round(float(raw.get(c, 1.00)), 2) for c in COMMODITIES}
 
 
 def _normalize_turn_timeline(raw: Any) -> list[dict[str, Any]]:
@@ -80,7 +76,7 @@ def _normalize_turn_timeline(raw: Any) -> list[dict[str, Any]]:
         sp_in = item.get("stock_prices")
         if not isinstance(sp_in, dict):
             sp_in = {}
-        stock_prices = {c: round(float(sp_in.get(c, 1.00)), 2) for c in commodities}
+        stock_prices = {c: round(float(sp_in.get(c, 1.00)), 2) for c in COMMODITIES}
         pn_in = item.get("player_net")
         player_net: dict[str, float] = {}
         if isinstance(pn_in, dict):
@@ -157,20 +153,17 @@ def _turn_count_from_saved_payload(data: dict) -> int:
     return _normalize_next_turn_label(raw)
 
 
-def _sync_dashboard_module_prices(prices: dict[str, float]) -> None:
-    import callbacks.dashboard_callbacks as dc
+def _sync_live_prices_from_dict(prices: dict[str, float]) -> None:
+    """Mirror server/config prices into the in-process dashboard dice loop dict."""
+    replace_live_prices({c: prices[c] for c in COMMODITIES})
 
-    dc.stock_prices = {c: prices[c] for c in commodities}
 
-
-def _sync_dashboard_module_prices_to_server(server) -> None:
-    """Copy live dashboard module prices into server.config before persisting."""
+def _flush_live_prices_to_server_config(server) -> None:
+    """Copy runtime live_prices into server.config before persisting."""
     try:
-        import callbacks.dashboard_callbacks as dc
-
-        if isinstance(getattr(dc, "stock_prices", None), dict):
+        if isinstance(live_prices, dict) and len(live_prices) > 0:
             server.config["STOCK_PRICES"] = {
-                c: round(float(dc.stock_prices.get(c, 1.00)), 2) for c in commodities
+                c: round(float(live_prices.get(c, 1.00)), 2) for c in COMMODITIES
             }
     except Exception:
         pass
@@ -184,7 +177,7 @@ def _session_payload_is_empty_game_state(payload: dict[str, Any]) -> bool:
     sp = payload.get("stock_prices") or {}
     if not isinstance(sp, dict):
         return True
-    return all(round(float(sp.get(c, 1.0)), 2) == 1.0 for c in commodities)
+    return all(round(float(sp.get(c, 1.0)), 2) == 1.0 for c in COMMODITIES)
 
 
 def _would_clobber_saved_session_with_empty_runtime(
@@ -200,7 +193,7 @@ def _would_clobber_saved_session_with_empty_runtime(
         return True
     old_sp = existing_file.get("stock_prices") or {}
     if isinstance(old_sp, dict):
-        for c in commodities:
+        for c in COMMODITIES:
             if round(float(old_sp.get(c, 1.0)), 2) != 1.0:
                 return True
     return False
@@ -278,7 +271,7 @@ def apply_payload_to_server(server, data: Any) -> None:
         server.config["CURRENT_TURN_ROLLS"] = []
         server.config["LAST_TURN_ROLLS"] = []
         server.config["GAME_MAX_TURNS"] = _normalize_game_max_turns(None)
-        _sync_dashboard_module_prices(server.config["STOCK_PRICES"])
+        _sync_live_prices_from_dict(server.config["STOCK_PRICES"])
         return
 
     server.config["STOCK_PRICES"] = _normalize_stock_prices(data.get("stock_prices"))
@@ -293,7 +286,7 @@ def apply_payload_to_server(server, data: Any) -> None:
     )
     server.config["LAST_TURN_ROLLS"] = _normalize_turn_roll_feed_list(data.get("last_turn_rolls"))
     server.config["GAME_MAX_TURNS"] = _normalize_game_max_turns(data.get("game_max_turns"))
-    _sync_dashboard_module_prices(server.config["STOCK_PRICES"])
+    _sync_live_prices_from_dict(server.config["STOCK_PRICES"])
 
 
 def save_session(app=None, server=None) -> None:
@@ -303,7 +296,7 @@ def save_session(app=None, server=None) -> None:
     if server is None:
         return
 
-    _sync_dashboard_module_prices_to_server(server)
+    _flush_live_prices_to_server_config(server)
     payload = build_payload(server)
     _atomic_write_json(SESSION_PATH, payload)
 
@@ -376,7 +369,7 @@ def load_session(app=None, server=None) -> None:
         server.config.setdefault("CURRENT_TURN_ROLLS", [])
         server.config.setdefault("LAST_TURN_ROLLS", [])
         server.config.setdefault("GAME_MAX_TURNS", _normalize_game_max_turns(None))
-        _sync_dashboard_module_prices(server.config["STOCK_PRICES"])
+        _sync_live_prices_from_dict(server.config["STOCK_PRICES"])
         return
 
     try:
@@ -393,7 +386,7 @@ def load_session(app=None, server=None) -> None:
         server.config.setdefault("CURRENT_TURN_ROLLS", [])
         server.config.setdefault("LAST_TURN_ROLLS", [])
         server.config.setdefault("GAME_MAX_TURNS", _normalize_game_max_turns(None))
-        _sync_dashboard_module_prices(server.config["STOCK_PRICES"])
+        _sync_live_prices_from_dict(server.config["STOCK_PRICES"])
         return
 
     apply_payload_to_server(server, data)
@@ -415,7 +408,7 @@ def register_shutdown_handlers(app) -> None:
                 return
             cancel_debounced_save()
             server = app.server
-            _sync_dashboard_module_prices_to_server(server)
+            _flush_live_prices_to_server_config(server)
             proposed = build_payload(server)
             if SESSION_PATH.is_file():
                 try:
