@@ -66,14 +66,21 @@ layout = html.Div(
             [
                 html.Div(
                     [
-                        html.Div(
+                        html.Button(
                             id="player-counter-display",
                             children="Players: 0",
+                            n_clicks=0,
+                            title="View players",
                             style={
                                 **_HEADER_COUNTER,
                                 "textAlign": "left",
                                 "flex": "1 1 0",
                                 "minWidth": "0",
+                                "border": "none",
+                                "background": "transparent",
+                                "cursor": "pointer",
+                                "padding": "0",
+                                "fontFamily": "inherit",
                             },
                         ),
                         html.H1(
@@ -275,6 +282,89 @@ layout = html.Div(
                                     ],
                                     style={"display": "flex", "justifyContent": "flex-end"},
                                 ),
+                            ],
+                        ),
+                    ],
+                ),
+                html.Div(
+                    id="players-modal",
+                    style={
+                        "display": "none",
+                        "position": "fixed",
+                        "inset": "0",
+                        "zIndex": "1000",
+                        "alignItems": "center",
+                        "justifyContent": "center",
+                        "padding": "24px",
+                        "boxSizing": "border-box",
+                    },
+                    children=[
+                        html.Button(
+                            id="players-modal-backdrop-btn",
+                            n_clicks=0,
+                            style={
+                                "position": "absolute",
+                                "inset": "0",
+                                "border": "none",
+                                "margin": "0",
+                                "padding": "0",
+                                "background": "rgba(0,0,0,0.45)",
+                                "cursor": "pointer",
+                            },
+                            title="Close",
+                        ),
+                        html.Div(
+                            style={
+                                "position": "relative",
+                                "zIndex": "1",
+                                "background": "#ffffff",
+                                "borderRadius": "12px",
+                                "padding": "22px 26px",
+                                "minWidth": "min(100%, 420px)",
+                                "maxWidth": "100%",
+                                "maxHeight": "min(80vh, 520px)",
+                                "overflowY": "auto",
+                                "boxShadow": "0 16px 48px rgba(0,0,0,0.22)",
+                                "boxSizing": "border-box",
+                                "fontFamily": "system-ui, Segoe UI, sans-serif",
+                            },
+                            children=[
+                                html.Div(
+                                    [
+                                        html.H2(
+                                            "Players",
+                                            style={
+                                                "margin": "0",
+                                                "fontSize": "clamp(1.15rem, 2.5vw, 1.35rem)",
+                                                "fontWeight": "700",
+                                                "color": "#1a1a1a",
+                                            },
+                                        ),
+                                        html.Button(
+                                            "\u00d7",
+                                            id="players-modal-close-btn",
+                                            n_clicks=0,
+                                            title="Close",
+                                            style={
+                                                "border": "none",
+                                                "background": "transparent",
+                                                "cursor": "pointer",
+                                                "fontSize": "1.75rem",
+                                                "lineHeight": "1",
+                                                "padding": "4px 8px",
+                                                "color": "#555",
+                                            },
+                                        ),
+                                    ],
+                                    style={
+                                        "display": "flex",
+                                        "alignItems": "center",
+                                        "justifyContent": "space-between",
+                                        "marginBottom": "16px",
+                                        "gap": "12px",
+                                    },
+                                ),
+                                html.Div(id="players-modal-list", children=[]),
                             ],
                         ),
                     ],
