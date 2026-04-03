@@ -1,5 +1,7 @@
+import time
+
 import dash
-from dash import Input, Output, State, callback, no_update, set_props
+from dash import Input, Output, State, callback, no_update, set_props, ALL, html
 import random
 import plotly.graph_objects as go
 from constants import (
@@ -11,7 +13,13 @@ from constants import (
 )
 
 from session_persistence import save_session, _normalize_turn_roll_interval_sec
-from callbacks.user_callbacks import ANONYMOUS_USER_KEY, _net_value, count_named_players
+from callbacks.user_callbacks import (
+    ANONYMOUS_USER_KEY,
+    _net_value,
+    count_named_players,
+    named_player_names,
+    remove_named_player_everywhere,
+)
 
 # Initialize stock prices with default values
 stock_prices = {commodity: 1.00 for commodity in commodities}
@@ -330,6 +338,86 @@ _HIDDEN_SETTINGS_MODAL_STYLE = {
 _VISIBLE_SETTINGS_MODAL_STYLE = {**_HIDDEN_SETTINGS_MODAL_STYLE, "display": "flex"}
 
 
+def _remove_button_click_value(ctx) -> int:
+    """Best n_clicks from triggered props for remove-player-btn (0 if none / not a real click)."""
+    for t in ctx.triggered or []:
+        pid = str(t.get("prop_id", ""))
+        if "remove-player-btn" not in pid or ".n_clicks" not in pid:
+            continue
+        v = t.get("value")
+        try:
+            return int(v) if v is not None else 0
+        except (TypeError, ValueError):
+            return 0
+    return 0
+
+
+def _max_remove_n_clicks(n_clicks_list) -> int:
+    """Highest n_clicks across ALL remove buttons (0 when list mounts with all zeros)."""
+    if not n_clicks_list:
+        return 0
+    try:
+        return max(int(x or 0) for x in n_clicks_list)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _build_players_modal_list_children():
+    users = dash.get_app().server.config.get("USER_STATE")
+    names = named_player_names(users)
+    if not names:
+        return html.Div(
+            "No named players.",
+            style={"fontSize": "clamp(0.95rem, 2vw, 1.05rem)", "color": "#666"},
+        )
+    row_wrap = {
+        "display": "flex",
+        "alignItems": "center",
+        "justifyContent": "space-between",
+        "gap": "12px",
+        "padding": "10px 0",
+        "borderBottom": "1px solid #eee",
+    }
+    remove_btn_style = {
+        "flex": "0 0 auto",
+        "marginLeft": "12px",
+        "padding": "8px 14px",
+        "fontSize": "0.95rem",
+        "fontWeight": "600",
+        "border": "none",
+        "borderRadius": "8px",
+        "backgroundColor": "#dc2626",
+        "color": "#ffffff",
+        "cursor": "pointer",
+    }
+    rows = []
+    for name in names:
+        rows.append(
+            html.Div(
+                [
+                    html.Span(
+                        name,
+                        style={
+                            "fontSize": "clamp(0.95rem, 2vw, 1.05rem)",
+                            "color": "#1a1a1a",
+                            "flex": "1 1 auto",
+                            "minWidth": "0",
+                            "wordBreak": "break-word",
+                        },
+                    ),
+                    html.Button(
+                        "Remove",
+                        id={"type": "remove-player-btn", "name": name},
+                        n_clicks=0,
+                        style=remove_btn_style,
+                    ),
+                ],
+                style=row_wrap,
+            )
+        )
+    return html.Div(rows)
+
+
 @callback(
     Output("settings-modal", "style"),
     Output("turn-roll-sec-input", "value"),
@@ -392,6 +480,86 @@ def settings_modal_and_interval(
         return hid, sec
 
     return no_update, no_update
+
+
+@callback(
+    Output("players-modal", "style"),
+    Output("players-modal-list", "children"),
+    [
+        Input("player-counter-display", "n_clicks"),
+        Input("players-modal-backdrop-btn", "n_clicks"),
+        Input("players-modal-close-btn", "n_clicks"),
+        Input("url", "pathname"),
+        Input("session-reload", "data"),
+        Input("_initial_load", "data"),
+    ],
+    prevent_initial_call=False,
+)
+def players_modal_open_close(
+    _n_counter,
+    _n_backdrop,
+    _n_close,
+    pathname,
+    _session_reload,
+    _initial_load,
+):
+    ctx = dash.callback_context
+    if not _pathname_is_dashboard(pathname):
+        return no_update, no_update
+
+    hid, vis = _HIDDEN_SETTINGS_MODAL_STYLE, _VISIBLE_SETTINGS_MODAL_STYLE
+
+    trig = ctx.triggered_id
+    if trig is None:
+        return hid, no_update
+
+    if trig == "url":
+        return no_update, no_update
+
+    if trig in ("session-reload", "_initial_load"):
+        return no_update, no_update
+
+    if trig == "player-counter-display":
+        if not _n_counter:
+            return no_update, no_update
+        return vis, _build_players_modal_list_children()
+
+    if trig in ("players-modal-backdrop-btn", "players-modal-close-btn"):
+        return hid, no_update
+
+    return no_update, no_update
+
+
+@callback(
+    Output("players-modal-list", "children", allow_duplicate=True),
+    Output("session-reload", "data", allow_duplicate=True),
+    Input({"type": "remove-player-btn", "name": ALL}, "n_clicks"),
+    Input("url", "pathname"),
+    prevent_initial_call=True,
+)
+def remove_named_player_from_modal(_n_remove_clicks, pathname):
+    ctx = dash.callback_context
+    if not _pathname_is_dashboard(pathname):
+        return no_update, no_update
+
+    trig = ctx.triggered_id
+    if trig == "url":
+        return no_update, no_update
+
+    # Opening the modal mounts new ALL targets; Dash may fire this callback with n_clicks=0 on every button.
+    # Only treat as a user action when some Remove button's n_clicks is >= 1 (avoids removing on open).
+    if _max_remove_n_clicks(_n_remove_clicks) < 1 and _remove_button_click_value(ctx) < 1:
+        return no_update, no_update
+
+    if not isinstance(trig, dict) or trig.get("type") != "remove-player-btn":
+        return no_update, no_update
+
+    username = trig.get("name")
+    if not username or username == ANONYMOUS_USER_KEY:
+        return no_update, no_update
+
+    remove_named_player_everywhere(username)
+    return _build_players_modal_list_children(), time.time()
 
 
 @callback(
@@ -473,9 +641,10 @@ def update_dashboard(n_roll, _n_interval, _initial_load_data, _session_reload, p
     Output("player-counter-display", "children"),
     Input("stock-prices-poll", "n_intervals"),
     Input("turn-sequence-store", "data"),
+    Input("session-reload", "data"),
     Input("url", "pathname"),
 )
-def update_player_counter_display(_poll_n, _seq_data, pathname):
+def update_player_counter_display(_poll_n, _seq_data, _session_reload, pathname):
     if not _pathname_is_dashboard(pathname):
         return no_update
     players = count_named_players(dash.get_app().server.config.get("USER_STATE"))

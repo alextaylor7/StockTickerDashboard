@@ -13,6 +13,33 @@ def count_named_players(user_state) -> int:
     return sum(1 for k in user_state if k != ANONYMOUS_USER_KEY)
 
 
+def named_player_names(user_state) -> list[str]:
+    """Sorted USER_STATE keys excluding the shared anonymous portfolio (modal list source)."""
+    if not isinstance(user_state, dict):
+        return []
+    return sorted(k for k in user_state if k != ANONYMOUS_USER_KEY)
+
+
+def remove_named_player_everywhere(username: str) -> None:
+    """Remove a named user from USER_STATE and scrub TURN_TIMELINE player_net; persist."""
+    if not username or username == ANONYMOUS_USER_KEY:
+        return
+    server = dash.get_app().server
+    user_state = server.config.setdefault("USER_STATE", {})
+    user_state.pop(username, None)
+    tl = server.config.get("TURN_TIMELINE")
+    if isinstance(tl, list):
+        for entry in tl:
+            if isinstance(entry, dict):
+                pn = entry.get("player_net")
+                if isinstance(pn, dict) and username in pn:
+                    pn.pop(username, None)
+
+    from session_persistence import save_session
+
+    save_session(dash.get_app())
+
+
 def _parse_username(search):
     if not search:
         return ""
