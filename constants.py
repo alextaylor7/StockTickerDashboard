@@ -1,6 +1,9 @@
 commodities = ["Gold", "Silver", "Bonds", "Oil", "Industrials", "Grain"]
 user_starting_balance = 5000
 
+# Default length of a game in turns (current turn label 1..N; ends when TURN_COUNT > N).
+DEFAULT_GAME_MAX_TURNS = 52
+
 # Client poll interval for shared stock prices / game meta (ms). Higher values reduce
 # Dash HTTP load per phone on LAN parties (see main.py dcc.Interval).
 PRICE_POLL_INTERVAL_MS = 2500

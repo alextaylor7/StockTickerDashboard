@@ -1,6 +1,6 @@
 from dash import dcc, html, register_page, dash_table
 from dash.dash_table.Format import Format, Scheme
-from constants import commodities
+from constants import DEFAULT_GAME_MAX_TURNS, commodities
 from dashboard_charts import (
     _dashboard_table_rows,
     build_commodity_timeline_figure,
@@ -205,6 +205,7 @@ layout = html.Div(
                                         ),
                                         dcc.Input(
                                             id="turn-roll-sec-input",
+                                            className="settings-number-input",
                                             type="number",
                                             min=1,
                                             max=600,
@@ -222,6 +223,51 @@ layout = html.Div(
                                         ),
                                         html.Span(
                                             "second intervals",
+                                            style={
+                                                "marginLeft": "10px",
+                                                "fontSize": "clamp(0.95rem, 2vw, 1.05rem)",
+                                                "color": "#333",
+                                            },
+                                        ),
+                                    ],
+                                    style={
+                                        "display": "flex",
+                                        "flexWrap": "wrap",
+                                        "alignItems": "center",
+                                        "marginBottom": "18px",
+                                    },
+                                ),
+                                html.Div(
+                                    [
+                                        html.Span(
+                                            "End game after:",
+                                            style={
+                                                "fontWeight": "600",
+                                                "fontSize": "clamp(0.95rem, 2vw, 1.05rem)",
+                                                "color": "#1a1a1a",
+                                                "marginRight": "10px",
+                                            },
+                                        ),
+                                        dcc.Input(
+                                            id="game-max-turns-input",
+                                            className="settings-number-input",
+                                            type="number",
+                                            min=1,
+                                            max=999,
+                                            step=1,
+                                            value=DEFAULT_GAME_MAX_TURNS,
+                                            debounce=True,
+                                            style={
+                                                "width": "72px",
+                                                "padding": "8px 10px",
+                                                "fontSize": "1rem",
+                                                "borderRadius": "8px",
+                                                "border": "1px solid #ccc",
+                                                "boxSizing": "border-box",
+                                            },
+                                        ),
+                                        html.Span(
+                                            "turns",
                                             style={
                                                 "marginLeft": "10px",
                                                 "fontSize": "clamp(0.95rem, 2vw, 1.05rem)",

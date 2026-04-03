@@ -1,4 +1,4 @@
-"""Persist STOCK_PRICES, USER_STATE, TURN_COUNT, turn timeline, turn-roll timing, and dice roll feeds."""
+"""Persist STOCK_PRICES, USER_STATE, TURN_COUNT, game length, turn timeline, turn-roll timing, dice feeds."""
 from __future__ import annotations
 
 import atexit
@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from constants import SESSION_SAVE_DEBOUNCE_SEC, commodities
+from constants import DEFAULT_GAME_MAX_TURNS, SESSION_SAVE_DEBOUNCE_SEC, commodities
 
 
 def _runtime_base_dir() -> Path:
@@ -28,7 +28,8 @@ SESSION_PATH = _runtime_base_dir() / "data" / "session_state.json"
 # v3: optional turn_timeline (per-turn snapshots for dashboard graphs).
 # v4: optional turn_roll_interval_sec (integer seconds between dice rolls in a turn).
 # v5: optional current_turn_rolls / last_turn_rolls (dice feed; list of {commodity, action, value}).
-VERSION = 5
+# v6: optional game_max_turns (end play when TURN_COUNT exceeds this).
+VERSION = 6
 
 _app_ref: Any = None
 
@@ -116,6 +117,15 @@ def _normalize_turn_roll_interval_sec(raw: Any) -> int:
     except (TypeError, ValueError):
         v = 1
     return max(1, min(600, v))
+
+
+def _normalize_game_max_turns(raw: Any) -> int:
+    """Maximum playable turn label inclusive; clamped 1..999; default when missing/invalid."""
+    try:
+        v = int(float(raw))
+    except (TypeError, ValueError):
+        v = DEFAULT_GAME_MAX_TURNS
+    return max(1, min(999, v))
 
 
 def _normalize_turn_roll_feed_list(raw: Any) -> list[dict[str, str]]:
@@ -226,6 +236,8 @@ def build_payload(server) -> dict[str, Any]:
     current_turn_rolls = _normalize_turn_roll_feed_list(server.config.get("CURRENT_TURN_ROLLS"))
     last_turn_rolls = _normalize_turn_roll_feed_list(server.config.get("LAST_TURN_ROLLS"))
 
+    game_max_turns = _normalize_game_max_turns(server.config.get("GAME_MAX_TURNS"))
+
     return {
         "version": VERSION,
         "stock_prices": stock_prices,
@@ -235,6 +247,7 @@ def build_payload(server) -> dict[str, Any]:
         "turn_roll_interval_sec": turn_roll_interval_sec,
         "current_turn_rolls": current_turn_rolls,
         "last_turn_rolls": last_turn_rolls,
+        "game_max_turns": game_max_turns,
     }
 
 
@@ -264,6 +277,7 @@ def apply_payload_to_server(server, data: Any) -> None:
         server.config["TURN_ROLL_INTERVAL_SEC"] = _normalize_turn_roll_interval_sec(None)
         server.config["CURRENT_TURN_ROLLS"] = []
         server.config["LAST_TURN_ROLLS"] = []
+        server.config["GAME_MAX_TURNS"] = _normalize_game_max_turns(None)
         _sync_dashboard_module_prices(server.config["STOCK_PRICES"])
         return
 
@@ -278,6 +292,7 @@ def apply_payload_to_server(server, data: Any) -> None:
         data.get("current_turn_rolls")
     )
     server.config["LAST_TURN_ROLLS"] = _normalize_turn_roll_feed_list(data.get("last_turn_rolls"))
+    server.config["GAME_MAX_TURNS"] = _normalize_game_max_turns(data.get("game_max_turns"))
     _sync_dashboard_module_prices(server.config["STOCK_PRICES"])
 
 
@@ -360,6 +375,7 @@ def load_session(app=None, server=None) -> None:
         )
         server.config.setdefault("CURRENT_TURN_ROLLS", [])
         server.config.setdefault("LAST_TURN_ROLLS", [])
+        server.config.setdefault("GAME_MAX_TURNS", _normalize_game_max_turns(None))
         _sync_dashboard_module_prices(server.config["STOCK_PRICES"])
         return
 
@@ -376,6 +392,7 @@ def load_session(app=None, server=None) -> None:
         )
         server.config.setdefault("CURRENT_TURN_ROLLS", [])
         server.config.setdefault("LAST_TURN_ROLLS", [])
+        server.config.setdefault("GAME_MAX_TURNS", _normalize_game_max_turns(None))
         _sync_dashboard_module_prices(server.config["STOCK_PRICES"])
         return
 
