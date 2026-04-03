@@ -4,7 +4,7 @@ import time
 from datetime import datetime
 
 import dash
-from dash import Input, Output, State, dcc, no_update
+from dash import ClientsideFunction, Input, Output, State, dcc, no_update
 
 from callbacks.app_ref import callback
 
@@ -62,23 +62,10 @@ def load_session_upload(contents, _filename):
         return no_update, f"Load failed: {e}"
 
 
-dash.clientside_callback(
-    """
-    function(n_clicks) {
-        if (!n_clicks) {
-            return window.dash_clientside.no_update;
-        }
-        var el = document.getElementById('session-upload');
-        if (el) {
-            var inp = el.querySelector('input[type="file"]');
-            if (inp) {
-                inp.click();
-            }
-        }
-        return n_clicks;
-    }
-    """,
-    Output("session-load-dummy", "data"),
-    Input("session-load-btn", "n_clicks"),
-    prevent_initial_call=True,
-)
+def register_session_clientside(app):
+    app.clientside_callback(
+        ClientsideFunction("stock_ticker", "sessionLoadClick"),
+        Output("session-load-dummy", "data"),
+        Input("session-load-btn", "n_clicks"),
+        prevent_initial_call=True,
+    )
