@@ -18,13 +18,13 @@ from session_persistence import (
     _normalize_game_max_turns,
     _normalize_turn_roll_interval_sec,
 )
-from callbacks.user_callbacks import (
+from domain.user_state import (
     ANONYMOUS_USER_KEY,
-    _net_value,
     count_named_players,
     named_player_names,
-    remove_named_player_everywhere,
+    net_value,
 )
+from callbacks.user_callbacks import remove_named_player_everywhere
 
 # Initialize stock prices with default values
 stock_prices = {commodity: 1.00 for commodity in COMMODITIES}
@@ -51,7 +51,7 @@ def _turn_zero_timeline_entry(server):
     user_state = server.config.get("USER_STATE") or {}
     player_net: dict[str, float] = {}
     for name in named_player_names(user_state):
-        player_net[name] = _net_value(
+        player_net[name] = net_value(
             float(USER_STARTING_BALANCE),
             zero_stocks,
             par_prices,
@@ -176,7 +176,7 @@ def _append_turn_timeline_snapshot():
         stocks = state.get("stocks")
         if not isinstance(stocks, dict):
             stocks = {}
-        player_net[username] = _net_value(
+        player_net[username] = net_value(
             float(state.get("balance", 0)),
             stocks,
             prices,

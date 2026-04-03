@@ -4,8 +4,7 @@ from dash import ClientsideFunction, Input, Output, dash as dash_ns
 
 
 def register_root_callbacks(app):
-    # Imported here so this module can load before bind_app(); user_callbacks registers @callbacks on import.
-    from callbacks.user_callbacks import count_named_players
+    from domain.user_state import count_named_players
 
     @app.callback(
         Output("url", "pathname"),

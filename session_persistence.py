@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from constants import COMMODITIES, DEFAULT_GAME_MAX_TURNS, SESSION_SAVE_DEBOUNCE_SEC
+from domain.user_state import normalize_user_state
 
 
 def _runtime_base_dir() -> Path:
@@ -42,12 +43,6 @@ def _default_stock_prices() -> dict[str, float]:
     return {c: 1.00 for c in COMMODITIES}
 
 
-def _normalize_user_state(user_state: dict) -> dict:
-    from callbacks.user_callbacks import _normalize_user_state as norm
-
-    return norm(user_state)
-
-
 def _normalize_user_state_map(raw: dict) -> dict[str, dict]:
     out: dict[str, dict] = {}
     if not isinstance(raw, dict):
@@ -55,7 +50,7 @@ def _normalize_user_state_map(raw: dict) -> dict[str, dict]:
     for key, val in raw.items():
         if not isinstance(key, str) or not isinstance(val, dict):
             continue
-        out[key] = _normalize_user_state(val)
+        out[key] = normalize_user_state(val)
     return out
 
 
