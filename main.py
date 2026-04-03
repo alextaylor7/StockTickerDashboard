@@ -1,7 +1,13 @@
+import logging
+import socket
+
 from dash import Dash, dcc, html, page_container, callback, clientside_callback, Output, Input, dash
+from waitress import serve
+
 import callbacks.dashboard_callbacks
 import callbacks.user_callbacks  # noqa: F401 — register portfolio callbacks at startup
 from callbacks.user_callbacks import count_named_players
+import constants
 from session_persistence import load_session, register_shutdown_handlers
 
 app = Dash(
@@ -18,6 +24,8 @@ app = Dash(
 
 load_session(app)
 register_shutdown_handlers(app)
+
+server = app.server
 
 # Define layout — #dash-shell / #content flex chain works with assets/viewport_desktop.css
 app.layout = html.Div(
@@ -36,7 +44,11 @@ app.layout = html.Div(
             style={"display": "none"},
             multiple=False,
         ),
-        dcc.Interval(id="stock-prices-poll", interval=1000, n_intervals=0),
+        dcc.Interval(
+            id="stock-prices-poll",
+            interval=constants.PRICE_POLL_INTERVAL_MS,
+            n_intervals=0,
+        ),
         dcc.Store(id="plotly-resize-hook", data=0),
         html.Div(
             id="content",
@@ -138,7 +150,58 @@ clientside_callback(
 
 import callbacks.session_callbacks  # noqa: F401 — Save/Load session on landing page
 
+LISTEN_HOST = "0.0.0.0"
+LISTEN_PORT = 8050
+
+
+def _guess_lan_ipv4() -> str | None:
+    """Best-effort primary IPv4 for URLs other devices can use (same as outbound route)."""
+    try:
+        probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            probe.connect(("8.8.8.8", 80))
+            return probe.getsockname()[0]
+        finally:
+            probe.close()
+    except OSError:
+        pass
+    try:
+        host = socket.gethostname()
+        ip = socket.gethostbyname(host)
+        if ip and ip != "127.0.0.1":
+            return ip
+    except OSError:
+        pass
+    return None
+
+
+def _print_startup_banner() -> None:
+    local_url = f"http://127.0.0.1:{LISTEN_PORT}/"
+    print(f"\n  This PC:     {local_url}", flush=True)
+    lan = _guess_lan_ipv4()
+    if lan and lan != "127.0.0.1":
+        print(f"  Other devices: http://{lan}:{LISTEN_PORT}/", flush=True)
+    else:
+        print(
+            f"  Other devices: use this machine's IPv4 in Network settings, port {LISTEN_PORT} "
+            "(e.g. http://192.168.x.x:8050/)",
+            flush=True,
+        )
+    print("  Logs and errors (INFO and above) follow. Ctrl+C to stop.\n", flush=True)
+
+
 if __name__ == "__main__":
-    # use_reloader=False: Werkzeug's stat-reloader parent process never serves requests, so
-    # server.config stays empty; its atexit would overwrite session_state.json with defaults.
-    app.run(host="0.0.0.0", port=8050, debug=False, use_reloader=False)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(levelname)s %(name)s: %(message)s",
+        force=True,
+    )
+    # Threaded Waitress WSGI: handles many concurrent Dash clients (LAN parties). Single process
+    # only — game state lives in server.config (see README). PyInstaller exe uses this block too.
+    _print_startup_banner()
+    serve(
+        server,
+        host=LISTEN_HOST,
+        port=LISTEN_PORT,
+        threads=constants.WAITRESS_THREADS,
+    )

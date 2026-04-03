@@ -6,11 +6,12 @@ import json
 import os
 import signal
 import sys
+import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from constants import commodities
+from constants import SESSION_SAVE_DEBOUNCE_SEC, commodities
 
 
 def _runtime_base_dir() -> Path:
@@ -263,6 +264,39 @@ def save_session(app=None, server=None) -> None:
     _atomic_write_json(SESSION_PATH, payload)
 
 
+_debounce_lock = threading.Lock()
+_debounce_timer: threading.Timer | None = None
+
+
+def cancel_debounced_save() -> None:
+    """Cancel a pending debounced save (e.g. before shutdown flush)."""
+    global _debounce_timer
+    with _debounce_lock:
+        if _debounce_timer is not None:
+            _debounce_timer.cancel()
+            _debounce_timer = None
+
+
+def schedule_debounced_save(app, delay_sec: float | None = None) -> None:
+    """Coalesce rapid trade saves into one disk write after a short quiet period."""
+    global _debounce_timer
+    if delay_sec is None:
+        delay_sec = SESSION_SAVE_DEBOUNCE_SEC
+
+    def _run():
+        global _debounce_timer
+        with _debounce_lock:
+            _debounce_timer = None
+        save_session(app)
+
+    with _debounce_lock:
+        if _debounce_timer is not None:
+            _debounce_timer.cancel()
+        _debounce_timer = threading.Timer(delay_sec, _run)
+        _debounce_timer.daemon = True
+        _debounce_timer.start()
+
+
 def _crash_snapshot_path() -> Path:
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     return SESSION_PATH.parent / f"session_crash_{ts}.json"
@@ -329,6 +363,7 @@ def register_shutdown_handlers(app) -> None:
                 app = _app_ref
             if app is None:
                 return
+            cancel_debounced_save()
             server = app.server
             _sync_dashboard_module_prices_to_server(server)
             proposed = build_payload(server)

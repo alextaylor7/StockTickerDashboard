@@ -106,10 +106,10 @@ Hydration runs when the user page loads (URL change or initial load). Buy/sell/a
 2. Install dependencies:
 
 ```bash
-pip install dash plotly
+pip install -r requirements.txt
 ```
 
-3. Start the server:
+3. Start the server (uses **Waitress**, a threaded WSGI server suitable for several phones on the same Wi‑Fi):
 
 ```bash
 python main.py
@@ -117,11 +117,22 @@ python main.py
 
 4. Open the app:
 
-- `http://127.0.0.1:8050/`
+- On the host machine: `http://127.0.0.1:8050/`
+- On other devices on the LAN: `http://<host-ip>:8050/` (same port; firewall must allow inbound TCP 8050).
+
+**Important:** Game state lives in **one Python process** (`server.config`). Use **one** server process only (do not run multiple `python main.py` or multiple copies of the executable expecting a shared game). For many concurrent clients, use **one** Waitress process with multiple **threads** (defaults are set in `constants.py`: `WAITRESS_THREADS`, `PRICE_POLL_INTERVAL_MS`).
+
+**Linux / macOS (alternative):** you can serve the same app with Gunicorn using a **single worker** and multiple threads, for example:
+
+```bash
+gunicorn -w 1 -k gthread --threads 16 -b 0.0.0.0:8050 main:server
+```
+
+(Requires `pip install gunicorn` and a `main:server` export — see `main.py`.)
 
 ## Build Windows executable (portable folder)
 
-This project includes a PowerShell build script for a Windows `onedir` bundle:
+This project includes a PowerShell build script for a Windows `onedir` bundle. The executable runs the same entry point as `python main.py` (Waitress on port 8050); PyInstaller bundles `waitress` from `requirements.txt`.
 
 ```powershell
 .\build_exe.ps1
@@ -138,9 +149,10 @@ Run:
 .\dist\StockTickerDashboard\StockTickerDashboard.exe
 ```
 
-Then open:
+Then open (same as a source run):
 
-- `http://127.0.0.1:8050/`
+- On the host: `http://127.0.0.1:8050/`
+- Other devices: `http://<host-ip>:8050/`
 
 Session persistence location for the executable build:
 
@@ -169,7 +181,7 @@ git push origin v1.0.0
 
 ## Notes / limitations
 
-- App state is kept in server memory during runtime (`server.config`) and saved to JSON on shutdown/updates.
+- App state is kept in server memory during runtime (`server.config`) and saved to JSON on shutdown and after trades (buy/sell/add cash writes are **debounced** briefly to reduce disk contention when many players trade at once).
 - For source runs (`python main.py`), session data is written under `data/session_state.json` in the project directory.
 - For executable runs, session data is written under the executable folder (`dist/StockTickerDashboard/data/session_state.json`).
-- If you run multiple worker processes, each worker has separate in-memory state; use a shared database for production-scale persistence.
+- If you run multiple **worker** processes (e.g. Gunicorn `workers > 1`), each worker has separate in-memory state; this app expects **one** process. Use a shared database if you ever shard workers.
