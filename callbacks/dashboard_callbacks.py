@@ -26,16 +26,36 @@ from callbacks.user_callbacks import (
 stock_prices = {commodity: 1.00 for commodity in commodities}
 
 
-def _dashboard_table_rows(stock_prices_dict: dict) -> list[dict]:
-    """Table shows Price as value×100 and Price/500 as value×500; storage stays in dollars."""
-    return [
-        {
-            "Commodity": k,
-            "Price": int(round(float(v) * 100)),
-            "PriceX500": int(round(float(v) * 500)),
-        }
-        for k, v in stock_prices_dict.items()
-    ]
+def _turn_baseline_stock_prices(server) -> dict:
+    """Dollar prices at end of last completed turn; par $1.00 when timeline is empty."""
+    tl = server.config.get("TURN_TIMELINE")
+    if not isinstance(tl, list) or len(tl) == 0:
+        return {c: round(1.00, 2) for c in commodities}
+    last = tl[-1]
+    if not isinstance(last, dict):
+        return {c: round(1.00, 2) for c in commodities}
+    sp = last.get("stock_prices")
+    if not isinstance(sp, dict):
+        return {c: round(1.00, 2) for c in commodities}
+    return {c: round(float(sp.get(c, 1.00)), 2) for c in commodities}
+
+
+def _dashboard_table_rows(stock_prices_dict: dict, baseline_prices: dict | None = None) -> list[dict]:
+    """Table shows Price as value×100 and ChangeThisTurn vs baseline (×100); storage stays in dollars."""
+    if baseline_prices is None:
+        baseline_prices = {c: round(1.00, 2) for c in commodities}
+    rows: list[dict] = []
+    for k, v in stock_prices_dict.items():
+        cur = int(round(float(v) * 100))
+        base = int(round(float(baseline_prices.get(k, 1.00)) * 100))
+        rows.append(
+            {
+                "Commodity": k,
+                "Price": cur,
+                "ChangeThisTurn": cur - base,
+            }
+        )
+    return rows
 
 
 def build_stock_graph_figure(stock_prices_dict):
@@ -237,8 +257,9 @@ def _roll_once_outputs():
     stock, action, value = roll_dice()
     _apply_one_roll(stock, action, value)
     fig = build_stock_graph_figure(stock_prices)
+    server = dash.get_app().server
     return (
-        _dashboard_table_rows(stock_prices),
+        _dashboard_table_rows(stock_prices, _turn_baseline_stock_prices(server)),
         stock,
         action,
         str(int(round(value * 100))),
@@ -333,8 +354,9 @@ def _hydrate_dashboard_from_server():
         * 1000
     )
     set_props("turn-roll-interval", {"interval": ms})
+    server = dash.get_app().server
     return (
-        _dashboard_table_rows(stock_prices),
+        _dashboard_table_rows(stock_prices, _turn_baseline_stock_prices(server)),
         "",
         "",
         "",
