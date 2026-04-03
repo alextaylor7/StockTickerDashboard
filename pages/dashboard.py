@@ -384,13 +384,36 @@ layout = html.Div(
                                             "format": Format(precision=0, scheme=Scheme.fixed),
                                         },
                                         {
-                                            "name": "Price/500",
-                                            "id": "PriceX500",
+                                            "name": "Change",
+                                            "id": "ChangeThisTurn",
                                             "type": "numeric",
                                             "format": Format(precision=0, scheme=Scheme.fixed),
                                         },
                                     ],
                                     data=_dashboard_table_rows(stock_prices),
+                                    style_data_conditional=[
+                                        {
+                                            "if": {
+                                                "filter_query": "{ChangeThisTurn} > 0",
+                                                "column_id": "ChangeThisTurn",
+                                            },
+                                            "color": "#0d7d0d",
+                                        },
+                                        {
+                                            "if": {
+                                                "filter_query": "{ChangeThisTurn} < 0",
+                                                "column_id": "ChangeThisTurn",
+                                            },
+                                            "color": "#c62828",
+                                        },
+                                        {
+                                            "if": {
+                                                "filter_query": "{ChangeThisTurn} = 0",
+                                                "column_id": "ChangeThisTurn",
+                                            },
+                                            "color": "#1a1a1a",
+                                        },
+                                    ],
                                     style_table={
                                         "width": "100%",
                                         "height": "100%",
