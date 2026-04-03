@@ -56,6 +56,28 @@ def _timeline_base_layout(title: str, y_title: str):
     )
 
 
+_OLS_SLOPE_EPS = 1e-9
+_MARKET_TREND_LINE_POSITIVE = "rgba(102, 187, 106, 0.5)"
+_MARKET_TREND_LINE_NEGATIVE = "rgba(239, 83, 80, 0.5)"
+_MARKET_TREND_LINE_FLAT = "rgba(0, 0, 0, 0.5)"
+
+
+def _ols_slope_intercept(xs: list[float], ys: list[float]) -> tuple[float, float] | None:
+    n = len(xs)
+    if n < 2 or len(ys) != n:
+        return None
+    sum_x = sum(xs)
+    sum_y = sum(ys)
+    sum_xx = sum(x * x for x in xs)
+    sum_xy = sum(xs[i] * ys[i] for i in range(n))
+    denom = n * sum_xx - sum_x * sum_x
+    if denom == 0:
+        return None
+    slope = (n * sum_xy - sum_x * sum_y) / denom
+    intercept = (sum_y - slope * sum_x) / n
+    return slope, intercept
+
+
 def build_stock_graph_figure(stock_prices_dict):
     x = list(commodities)
     y = [stock_prices_dict[c] * 100 for c in commodities]
@@ -155,5 +177,54 @@ def build_commodity_timeline_figure(timeline: list) -> go.Figure:
                 connectgaps=False,
             )
         )
+
+    market_xy: list[tuple[float, float]] = []
+    for p in timeline:
+        if not isinstance(p, dict):
+            continue
+        sp = p.get("stock_prices") if isinstance(p.get("stock_prices"), dict) else {}
+        row_vals: list[float] = []
+        skip = False
+        for c in commodities:
+            raw = sp.get(c)
+            if raw is None:
+                skip = True
+                break
+            row_vals.append(float(raw) * 100)
+        if skip:
+            continue
+        tv = p.get("turn")
+        if tv is None:
+            continue
+        try:
+            tx = float(tv)
+        except (TypeError, ValueError):
+            continue
+        market_xy.append((tx, sum(row_vals) / len(row_vals)))
+
+    ols = _ols_slope_intercept([a[0] for a in market_xy], [a[1] for a in market_xy]) if len(market_xy) >= 2 else None
+    if ols is not None:
+        slope, intercept = ols
+        if abs(slope) <= _OLS_SLOPE_EPS:
+            trend_color = _MARKET_TREND_LINE_FLAT
+        elif slope > 0:
+            trend_color = _MARKET_TREND_LINE_POSITIVE
+        else:
+            trend_color = _MARKET_TREND_LINE_NEGATIVE
+        t_numeric = [float(t) for t in turns]
+        t_lo = int(min(t_numeric))
+        t_hi = int(max(t_numeric))
+        trend_x = list(range(t_lo, t_hi + 1))
+        trend_y = [intercept + slope * float(t) for t in trend_x]
+        fig.add_trace(
+            go.Scatter(
+                x=trend_x,
+                y=trend_y,
+                mode="lines",
+                name="Market trend",
+                line=dict(color=trend_color, width=3),
+            )
+        )
+
     fig.update_layout(**_timeline_base_layout("Commodity Prices", "Price (×100)"))
     return fig
