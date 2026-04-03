@@ -1,7 +1,7 @@
 from dash import dcc, html, register_page, dash_table
 from dash.dash_table.Format import Format, Scheme
 from constants import commodities
-from callbacks.dashboard_callbacks import (
+from dashboard_charts import (
     _dashboard_table_rows,
     build_commodity_timeline_figure,
     build_player_net_timeline_figure,
@@ -23,7 +23,6 @@ _GRAPH_CONFIG = {
 }
 
 _TABLE_FONT = "clamp(1rem, 1.35vw, 1.35rem)"
-_DICE_FONT = "clamp(1.25rem, 2.2vw, 2rem)"
 _TITLE_SIZE = "clamp(1.75rem, 4vw, 3rem)"
 _HEADER_COUNTER = {
     "fontSize": "clamp(1rem, 2.2vw, 1.35rem)",
@@ -31,30 +30,6 @@ _HEADER_COUNTER = {
     "color": "#1a1a1a",
     "flex": "0 0 auto",
     "minWidth": "0",
-}
-
-_DICE_LABEL_STYLE = {
-    "fontSize": _DICE_FONT,
-    "fontWeight": "600",
-    "lineHeight": "1.35",
-    "color": "#111",
-    "padding": "10px 12px 10px 0",
-    "verticalAlign": "middle",
-    "textAlign": "right",
-    "width": "42%",
-    "whiteSpace": "nowrap",
-    "border": "none",
-}
-_DICE_VALUE_STYLE = {
-    "fontSize": _DICE_FONT,
-    "fontWeight": "600",
-    "lineHeight": "1.35",
-    "color": "#111",
-    "padding": "10px 0 10px 8px",
-    "verticalAlign": "middle",
-    "textAlign": "left",
-    "width": "58%",
-    "border": "none",
 }
 
 layout = html.Div(
@@ -447,57 +422,29 @@ layout = html.Div(
                         ),
                         html.Div(
                             [
-                                html.Table(
-                                    html.Tbody(
-                                        [
-                                            html.Tr(
-                                                [
-                                                    html.Td("Stock:", style=_DICE_LABEL_STYLE),
-                                                    html.Td(
-                                                        id="rolled-stock-value",
-                                                        children="",
-                                                        style=_DICE_VALUE_STYLE,
-                                                    ),
-                                                ]
-                                            ),
-                                            html.Tr(
-                                                [
-                                                    html.Td("Action:", style=_DICE_LABEL_STYLE),
-                                                    html.Td(
-                                                        id="rolled-action-value",
-                                                        children="",
-                                                        style=_DICE_VALUE_STYLE,
-                                                    ),
-                                                ]
-                                            ),
-                                            html.Tr(
-                                                [
-                                                    html.Td("Value:", style=_DICE_LABEL_STYLE),
-                                                    html.Td(
-                                                        id="rolled-value-value",
-                                                        children="",
-                                                        style=_DICE_VALUE_STYLE,
-                                                    ),
-                                                ]
-                                            ),
-                                        ]
-                                    ),
+                                html.Div(
+                                    id="turn-rolls-feed",
                                     style={
                                         "width": "100%",
-                                        "borderCollapse": "collapse",
-                                        "tableLayout": "fixed",
-                                        "border": "none",
+                                        "maxHeight": "min(480px, 52vh)",
+                                        "overflowY": "auto",
+                                        "flex": "1 1 auto",
+                                        "minHeight": "min(200px, 28vh)",
+                                        "padding": "4px 4px 8px",
+                                        "boxSizing": "border-box",
                                     },
                                 ),
                             ],
                             style={
-                                "flex": "0 0 24%",
-                                "minWidth": "200px",
-                                "maxWidth": "320px",
+                                "flex": "0 0 28%",
+                                "minWidth": "240px",
+                                "maxWidth": "420px",
+                                "minHeight": "0",
                                 "display": "flex",
-                                "flex-direction": "column",
-                                "justify-content": "center",
-                                "padding": "12px 16px",
+                                "flexDirection": "column",
+                                "justifyContent": "center",
+                                "alignItems": "stretch",
+                                "padding": "14px 18px",
                                 "backgroundColor": "#ffffff",
                                 "borderRadius": "8px",
                                 "boxShadow": "0 2px 8px rgba(0,0,0,0.08)",

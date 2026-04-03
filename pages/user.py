@@ -1,5 +1,4 @@
 from dash import dcc, html, register_page, dash_table
-import callbacks.user_callbacks
 from constants import commodities, user_starting_balance
 
 user_stocks = {commodity: 0 for commodity in commodities}

@@ -1,18 +1,18 @@
 import time
 
 import dash
-from dash import Input, Output, State, callback, no_update, set_props, ALL, html
-import random
-import plotly.graph_objects as go
-from constants import (
-    CHART_BG,
-    CHART_TEXT,
-    COMMODITY_BAR_COLORS,
-    COMMODITY_TIMELINE_LINE_COLORS,
-    commodities,
-    user_starting_balance,
-)
+from dash import Input, Output, State, no_update, set_props, ALL, html
 
+from callbacks.app_ref import callback
+import random
+from constants import commodities, user_starting_balance
+
+from dashboard_charts import (
+    _dashboard_table_rows,
+    build_commodity_timeline_figure,
+    build_player_net_timeline_figure,
+    build_stock_graph_figure,
+)
 from session_persistence import save_session, _normalize_turn_roll_interval_sec
 from callbacks.user_callbacks import (
     ANONYMOUS_USER_KEY,
@@ -38,149 +38,6 @@ def _turn_baseline_stock_prices(server) -> dict:
     if not isinstance(sp, dict):
         return {c: round(1.00, 2) for c in commodities}
     return {c: round(float(sp.get(c, 1.00)), 2) for c in commodities}
-
-
-def _dashboard_table_rows(stock_prices_dict: dict, baseline_prices: dict | None = None) -> list[dict]:
-    """Table shows Price as value×100 and ChangeThisTurn vs baseline (×100); storage stays in dollars."""
-    if baseline_prices is None:
-        baseline_prices = {c: round(1.00, 2) for c in commodities}
-    rows: list[dict] = []
-    for k, v in stock_prices_dict.items():
-        cur = int(round(float(v) * 100))
-        base = int(round(float(baseline_prices.get(k, 1.00)) * 100))
-        rows.append(
-            {
-                "Commodity": k,
-                "Price": cur,
-                "ChangeThisTurn": cur - base,
-            }
-        )
-    return rows
-
-
-def build_stock_graph_figure(stock_prices_dict):
-    x = list(commodities)
-    y = [stock_prices_dict[c] * 100 for c in commodities]
-    colors = [COMMODITY_BAR_COLORS[c] for c in commodities]
-    fig = go.Figure()
-    fig.add_trace(
-        go.Bar(
-            x=x,
-            y=y,
-            marker_color=colors,
-            marker_line=dict(color="rgba(0,0,0,0.35)", width=1),
-        )
-    )
-    fig.update_layout(
-        title=dict(text="Stock Prices", font=dict(color=CHART_TEXT, size=22)),
-        plot_bgcolor=CHART_BG,
-        paper_bgcolor=CHART_BG,
-        font=dict(color=CHART_TEXT, size=16),
-        margin=dict(l=56, r=28, t=64, b=52),
-        yaxis=dict(
-            range=[0, 200],
-            gridcolor="rgba(255,255,255,0.15)",
-            zerolinecolor="rgba(255,255,255,0.25)",
-            tickfont=dict(size=16),
-            title=dict(text="Price (×100)", font=dict(size=16)),
-        ),
-        xaxis=dict(
-            gridcolor="rgba(255,255,255,0.1)",
-            tickfont=dict(size=15),
-        ),
-    )
-    return fig
-
-
-def _timeline_base_layout(title: str, y_title: str):
-    return dict(
-        title=dict(text=title, font=dict(color=CHART_TEXT, size=22)),
-        plot_bgcolor=CHART_BG,
-        paper_bgcolor=CHART_BG,
-        font=dict(color=CHART_TEXT, size=16),
-        margin=dict(l=56, r=28, t=64, b=52),
-        legend=dict(font=dict(color=CHART_TEXT, size=14)),
-        xaxis=dict(
-            title=dict(text="Turn", font=dict(size=14)),
-            gridcolor="rgba(255,255,255,0.15)",
-            tickfont=dict(size=14),
-        ),
-        yaxis=dict(
-            title=dict(text=y_title, font=dict(size=14)),
-            gridcolor="rgba(255,255,255,0.15)",
-            zerolinecolor="rgba(255,255,255,0.25)",
-            tickfont=dict(size=14),
-        ),
-    )
-
-
-def build_player_net_timeline_figure(timeline: list) -> go.Figure:
-    fig = go.Figure()
-    if not isinstance(timeline, list) or len(timeline) == 0:
-        fig.update_layout(**_timeline_base_layout("Player Net Value", "Net Value ($)"))
-        return fig
-
-    turns = [p["turn"] for p in timeline if isinstance(p, dict)]
-    names: set[str] = set()
-    for p in timeline:
-        if isinstance(p, dict) and isinstance(p.get("player_net"), dict):
-            names.update(p["player_net"].keys())
-    for name in sorted(names):
-        ys = []
-        for p in timeline:
-            if not isinstance(p, dict):
-                ys.append(None)
-                continue
-            pn = p.get("player_net") if isinstance(p.get("player_net"), dict) else {}
-            v = pn.get(name)
-            ys.append(v if v is not None else None)
-        fig.add_trace(
-            go.Scatter(
-                x=turns,
-                y=ys,
-                mode="lines+markers",
-                name=name,
-                connectgaps=False,
-            )
-        )
-    fig.update_layout(**_timeline_base_layout("Player Net Value", "Net Value ($)"))
-    return fig
-
-
-def build_commodity_timeline_figure(timeline: list) -> go.Figure:
-    fig = go.Figure()
-    if not isinstance(timeline, list) or len(timeline) == 0:
-        fig.update_layout(**_timeline_base_layout("Commodity Prices", "Price (×100)"))
-        return fig
-
-    turns = [p["turn"] for p in timeline if isinstance(p, dict)]
-    for c in commodities:
-        ys = []
-        for p in timeline:
-            if not isinstance(p, dict):
-                ys.append(None)
-                continue
-            sp = p.get("stock_prices") if isinstance(p.get("stock_prices"), dict) else {}
-            raw = sp.get(c)
-            ys.append(raw * 100 if raw is not None else None)
-        line_color = COMMODITY_TIMELINE_LINE_COLORS.get(c, "#cccccc")
-        fig.add_trace(
-            go.Scatter(
-                x=turns,
-                y=ys,
-                mode="lines+markers",
-                name=c,
-                line=dict(color=line_color, width=2),
-                marker=dict(
-                    size=8,
-                    color=line_color,
-                    line=dict(width=1, color="rgba(0,0,0,0.45)"),
-                ),
-                connectgaps=False,
-            )
-        )
-    fig.update_layout(**_timeline_base_layout("Commodity Prices", "Price (×100)"))
-    return fig
 
 
 def _turn_zero_timeline_entry(server):
@@ -255,16 +112,16 @@ def _apply_one_roll(stock, action, value):
 
 def _roll_once_outputs():
     stock, action, value = roll_dice()
+    value_str = str(int(round(value * 100)))
+    server = dash.get_app().server
+    rolls = server.config.setdefault("CURRENT_TURN_ROLLS", [])
+    if not isinstance(rolls, list):
+        rolls = []
+        server.config["CURRENT_TURN_ROLLS"] = rolls
+    rolls.append({"commodity": stock, "action": action, "value": value_str})
     _apply_one_roll(stock, action, value)
     fig = build_stock_graph_figure(stock_prices)
-    server = dash.get_app().server
-    return (
-        _dashboard_table_rows(stock_prices, _turn_baseline_stock_prices(server)),
-        stock,
-        action,
-        str(int(round(value * 100))),
-        fig,
-    )
+    return _dashboard_table_rows(stock_prices, _turn_baseline_stock_prices(server)), fig
 
 
 def _player_roll_count() -> int:
@@ -322,8 +179,21 @@ def _append_turn_timeline_snapshot():
 
 def _increment_turn_and_save():
     """After a full turn's rolls finish, advance the 1-based turn label for the button."""
-    _append_turn_timeline_snapshot()
     server = dash.get_app().server
+    cur = server.config.get("CURRENT_TURN_ROLLS")
+    if not isinstance(cur, list):
+        cur = []
+    server.config["LAST_TURN_ROLLS"] = [
+        {
+            "commodity": str(r.get("commodity", "")),
+            "action": str(r.get("action", "")),
+            "value": str(r.get("value", "")),
+        }
+        for r in cur
+        if isinstance(r, dict)
+    ]
+    server.config["CURRENT_TURN_ROLLS"] = []
+    _append_turn_timeline_snapshot()
     server.config["TURN_COUNT"] = int(server.config.get("TURN_COUNT", 1)) + 1
     save_session(dash.get_app())
 
@@ -332,6 +202,39 @@ def _timeline_figures_from_server():
     server = dash.get_app().server
     tl = _timeline_for_figures(server)
     return build_player_net_timeline_figure(tl), build_commodity_timeline_figure(tl)
+
+
+def _turn_rolls_feed_children(server=None):
+    if server is None:
+        server = dash.get_app().server
+    cur = server.config.get("CURRENT_TURN_ROLLS")
+    last = server.config.get("LAST_TURN_ROLLS")
+    if isinstance(cur, list) and len(cur) > 0:
+        rows = cur
+    elif isinstance(last, list):
+        rows = last
+    else:
+        rows = []
+    # Storage order is oldest→newest; show newest on top.
+    feed_font = "system-ui, Segoe UI, sans-serif"
+    item_style = {
+        "fontSize": "clamp(1.25rem, 2.2vw, 2rem)",
+        "fontWeight": "600",
+        "lineHeight": "1.35",
+        "color": "#111",
+        "padding": "10px 0",
+        "borderBottom": "1px solid #e8e8e8",
+        "fontFamily": feed_font,
+    }
+    out = []
+    for r in reversed(rows):
+        if not isinstance(r, dict):
+            continue
+        c = r.get("commodity", "")
+        a = r.get("action", "")
+        v = r.get("value", "")
+        out.append(html.Div(f"{c}, {a}, {v}", style=item_style))
+    return out
 
 
 def _hydrate_dashboard_from_server():
@@ -357,14 +260,12 @@ def _hydrate_dashboard_from_server():
     server = dash.get_app().server
     return (
         _dashboard_table_rows(stock_prices, _turn_baseline_stock_prices(server)),
-        "",
-        "",
-        "",
         fig,
         None,
         True,
         pn_fig,
         co_fig,
+        _turn_rolls_feed_children(server),
     )
 
 
@@ -614,14 +515,12 @@ def remove_named_player_from_modal(_n_remove_clicks, pathname):
 @callback(
     [
         Output("stock-table", "data"),
-        Output("rolled-stock-value", "children"),
-        Output("rolled-action-value", "children"),
-        Output("rolled-value-value", "children"),
         Output("stock-graph", "figure"),
         Output("turn-sequence-store", "data"),
         Output("turn-roll-interval", "disabled"),
         Output("player-net-timeline-graph", "figure"),
         Output("commodity-timeline-graph", "figure"),
+        Output("turn-rolls-feed", "children"),
     ],
     [
         Input("roll-btn", "n_clicks"),
@@ -641,7 +540,7 @@ def update_dashboard(n_roll, _n_interval, _initial_load_data, _session_reload, p
 
     # Dashboard-only layout: avoid outputs + set_props for missing components (e.g. sign-in /).
     if not _pathname_is_dashboard(pathname):
-        return (no_update,) * 9
+        return (no_update,) * 7
 
     if not ctx.triggered:
         return _hydrate_dashboard_from_server()
@@ -652,28 +551,32 @@ def update_dashboard(n_roll, _n_interval, _initial_load_data, _session_reload, p
     if interval_fired:
         rem = _sequence_remaining(seq_data)
         if rem <= 0:
-            return (no_update,) * 9
-        table, rs, ra, rv, fig = _roll_once_outputs()
+            return (no_update,) * 7
+        table, fig = _roll_once_outputs()
         new_rem = rem - 1
         if new_rem <= 0:
             _increment_turn_and_save()
             pn_fig, co_fig = _timeline_figures_from_server()
-            return (table, rs, ra, rv, fig, None, True, pn_fig, co_fig)
-        return (table, rs, ra, rv, fig, {"remaining": new_rem}, False, no_update, no_update)
+            feed = _turn_rolls_feed_children()
+            return (table, fig, None, True, pn_fig, co_fig, feed)
+        feed = _turn_rolls_feed_children()
+        return (table, fig, {"remaining": new_rem}, False, no_update, no_update, feed)
 
     if roll_fired and n_roll and n_roll > 0:
         if _sequence_remaining(seq_data) > 0:
-            return (no_update,) * 9
+            return (no_update,) * 7
         p = _player_roll_count()
         if p <= 0:
-            return (no_update,) * 9
-        table, rs, ra, rv, fig = _roll_once_outputs()
+            return (no_update,) * 7
+        table, fig = _roll_once_outputs()
         rem_after = p - 1
         if rem_after <= 0:
             _increment_turn_and_save()
             pn_fig, co_fig = _timeline_figures_from_server()
-            return (table, rs, ra, rv, fig, None, True, pn_fig, co_fig)
-        return (table, rs, ra, rv, fig, {"remaining": rem_after}, False, no_update, no_update)
+            feed = _turn_rolls_feed_children()
+            return (table, fig, None, True, pn_fig, co_fig, feed)
+        feed = _turn_rolls_feed_children()
+        return (table, fig, {"remaining": rem_after}, False, no_update, no_update, feed)
 
     if "url.pathname" in tp and _pathname_is_dashboard(pathname):
         return _hydrate_dashboard_from_server()
@@ -683,7 +586,7 @@ def update_dashboard(n_roll, _n_interval, _initial_load_data, _session_reload, p
     ):
         return _hydrate_dashboard_from_server()
 
-    return (no_update,) * 9
+    return (no_update,) * 7
 
 
 @callback(

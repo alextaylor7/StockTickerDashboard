@@ -4,7 +4,9 @@ import time
 from datetime import datetime
 
 import dash
-from dash import Input, Output, State, callback, dcc, no_update
+from dash import Input, Output, State, dcc, no_update
+
+from callbacks.app_ref import callback
 
 from session_persistence import apply_payload_to_server, build_payload
 
