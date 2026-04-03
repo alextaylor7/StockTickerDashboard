@@ -67,6 +67,18 @@ body:has(#dash-shell .landing-page) div._dash-app-content {
   outline-offset: 2px;
 }
 
+/* Game settings modal: plain number fields without browser stepper arrows */
+.settings-number-input::-webkit-outer-spin-button,
+.settings-number-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.settings-number-input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 /* Timeline graphs: fixed 50/50 columns; allow horizontal scroll if the viewport is narrower than two cells */
 .dashboard-timeline-row {
   overflow-x: auto;

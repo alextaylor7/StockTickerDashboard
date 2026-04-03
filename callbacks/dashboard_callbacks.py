@@ -13,7 +13,11 @@ from dashboard_charts import (
     build_player_net_timeline_figure,
     build_stock_graph_figure,
 )
-from session_persistence import save_session, _normalize_turn_roll_interval_sec
+from session_persistence import (
+    save_session,
+    _normalize_game_max_turns,
+    _normalize_turn_roll_interval_sec,
+)
 from callbacks.user_callbacks import (
     ANONYMOUS_USER_KEY,
     _net_value,
@@ -136,6 +140,12 @@ def _play_turn_button_disabled(players: int, seq_data) -> bool:
     if players <= 0:
         return True
     return _sequence_remaining(seq_data) > 0
+
+
+def _game_has_ended(server) -> bool:
+    turn_num = int(server.config.get("TURN_COUNT", 1))
+    max_t = _normalize_game_max_turns(server.config.get("GAME_MAX_TURNS"))
+    return turn_num > max_t
 
 
 def _sequence_remaining(seq_data):
@@ -371,6 +381,7 @@ def _build_players_modal_list_children():
 @callback(
     Output("settings-modal", "style"),
     Output("turn-roll-sec-input", "value"),
+    Output("game-max-turns-input", "value"),
     [
         Input("settings-gear-btn", "n_clicks"),
         Input("settings-modal-backdrop-btn", "n_clicks"),
@@ -381,6 +392,7 @@ def _build_players_modal_list_children():
         Input("_initial_load", "data"),
     ],
     State("turn-roll-sec-input", "value"),
+    State("game-max-turns-input", "value"),
     prevent_initial_call=False,
 )
 def settings_modal_and_interval(
@@ -392,44 +404,51 @@ def settings_modal_and_interval(
     _session_reload,
     _initial_load,
     sec_input,
+    max_turns_input,
 ):
     """Modal only. Do not Output turn-roll-interval.interval here — that resets the timer in Dash 3 and drops ticks."""
     ctx = dash.callback_context
     server = dash.get_app().server
     # Dashboard-only layout: never patch these outputs or set_props from other routes (breaks Dash 3 renderer).
     if not _pathname_is_dashboard(pathname):
-        return no_update, no_update
+        return no_update, no_update, no_update
 
     hid, vis = _HIDDEN_SETTINGS_MODAL_STYLE, _VISIBLE_SETTINGS_MODAL_STYLE
 
     def sec_from_server() -> int:
         return _normalize_turn_roll_interval_sec(server.config.get("TURN_ROLL_INTERVAL_SEC"))
 
+    def max_turns_from_server() -> int:
+        return _normalize_game_max_turns(server.config.get("GAME_MAX_TURNS"))
+
     trig = ctx.triggered_id
     if trig is None:
-        return hid, no_update
+        return hid, no_update, no_update
 
     if trig == "url":
-        return no_update, no_update
+        return no_update, no_update, no_update
 
     if trig in ("session-reload", "_initial_load"):
-        return no_update, no_update
+        return no_update, no_update, no_update
 
     if trig == "settings-gear-btn":
         s = sec_from_server()
-        return vis, s
+        m = max_turns_from_server()
+        return vis, s, m
 
     if trig in ("settings-modal-backdrop-btn", "settings-modal-close-btn"):
-        return hid, no_update
+        return hid, no_update, no_update
 
     if trig == "settings-apply-btn":
         sec = _normalize_turn_roll_interval_sec(sec_input)
+        max_t = _normalize_game_max_turns(max_turns_input)
         server.config["TURN_ROLL_INTERVAL_SEC"] = sec
+        server.config["GAME_MAX_TURNS"] = max_t
         save_session(dash.get_app())
         set_props("turn-roll-interval", {"interval": sec * 1000})
-        return hid, sec
+        return hid, sec, max_t
 
-    return no_update, no_update
+    return no_update, no_update, no_update
 
 
 @callback(
@@ -547,8 +566,11 @@ def update_dashboard(n_roll, _n_interval, _initial_load_data, _session_reload, p
 
     interval_fired = "turn-roll-interval.n_intervals" in tp
     roll_fired = "roll-btn.n_clicks" in tp
+    server = dash.get_app().server
 
     if interval_fired:
+        if _game_has_ended(server):
+            return (no_update,) * 7
         rem = _sequence_remaining(seq_data)
         if rem <= 0:
             return (no_update,) * 7
@@ -563,6 +585,8 @@ def update_dashboard(n_roll, _n_interval, _initial_load_data, _session_reload, p
         return (table, fig, {"remaining": new_rem}, False, no_update, no_update, feed)
 
     if roll_fired and n_roll and n_roll > 0:
+        if _game_has_ended(server):
+            return (no_update,) * 7
         if _sequence_remaining(seq_data) > 0:
             return (no_update,) * 7
         p = _player_roll_count()
@@ -608,17 +632,20 @@ def update_player_counter_display(_poll_n, _seq_data, _session_reload, pathname)
     Output("roll-btn", "children"),
     Input("stock-prices-poll", "n_intervals"),
     Input("turn-sequence-store", "data"),
+    Input("settings-apply-btn", "n_clicks"),
     Input("url", "pathname"),
     prevent_initial_call=False,
 )
-def sync_roll_btn(_poll_n, seq_data, pathname):
+def sync_roll_btn(_poll_n, seq_data, _settings_apply, pathname):
     """Button label is Turn N (1-based); updates when a turn completes and the sequence store clears."""
     if not _pathname_is_dashboard(pathname):
         return True, no_update
     server = dash.get_app().server
     turn_num = int(server.config.get("TURN_COUNT", 1))
-    label = f"Turn {turn_num}"
+    max_t = _normalize_game_max_turns(server.config.get("GAME_MAX_TURNS"))
+    ended = turn_num > max_t
+    label = "Game over" if ended else f"Turn {turn_num}"
     users = server.config.get("USER_STATE")
     players = count_named_players(users)
-    disabled = _play_turn_button_disabled(players, seq_data)
+    disabled = _play_turn_button_disabled(players, seq_data) or ended
     return disabled, label
