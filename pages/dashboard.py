@@ -1,8 +1,8 @@
 from dash import dcc, html, register_page, dash_table
 from dash.dash_table.Format import Format, Scheme
-from constants import DEFAULT_GAME_MAX_TURNS, commodities
+from constants import COMMODITIES, DEFAULT_GAME_MAX_TURNS
 from dashboard_charts import (
-    _dashboard_table_rows,
+    dashboard_table_rows,
     build_commodity_timeline_figure,
     build_player_net_timeline_figure,
     build_stock_graph_figure,
@@ -10,7 +10,7 @@ from dashboard_charts import (
 
 register_page(__name__, path="/dashboard")
 
-stock_prices = {commodity: 1.00 for commodity in commodities}
+stock_prices = {commodity: 1.00 for commodity in COMMODITIES}
 fig = build_stock_graph_figure(stock_prices)
 player_net_timeline_fig = build_player_net_timeline_figure([])
 commodity_timeline_fig = build_commodity_timeline_figure([])
@@ -411,7 +411,7 @@ layout = html.Div(
                                             "format": Format(precision=0, scheme=Scheme.fixed),
                                         },
                                     ],
-                                    data=_dashboard_table_rows(stock_prices),
+                                    data=dashboard_table_rows(stock_prices),
                                     style_data_conditional=[
                                         {
                                             "if": {

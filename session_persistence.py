@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from constants import DEFAULT_GAME_MAX_TURNS, SESSION_SAVE_DEBOUNCE_SEC, commodities
+from constants import COMMODITIES, DEFAULT_GAME_MAX_TURNS, SESSION_SAVE_DEBOUNCE_SEC
 
 
 def _runtime_base_dir() -> Path:
@@ -39,7 +39,7 @@ def _ensure_data_dir() -> None:
 
 
 def _default_stock_prices() -> dict[str, float]:
-    return {c: 1.00 for c in commodities}
+    return {c: 1.00 for c in COMMODITIES}
 
 
 def _normalize_user_state(user_state: dict) -> dict:
@@ -62,7 +62,7 @@ def _normalize_user_state_map(raw: dict) -> dict[str, dict]:
 def _normalize_stock_prices(raw: Any) -> dict[str, float]:
     if not isinstance(raw, dict):
         return _default_stock_prices()
-    return {c: round(float(raw.get(c, 1.00)), 2) for c in commodities}
+    return {c: round(float(raw.get(c, 1.00)), 2) for c in COMMODITIES}
 
 
 def _normalize_turn_timeline(raw: Any) -> list[dict[str, Any]]:
@@ -80,7 +80,7 @@ def _normalize_turn_timeline(raw: Any) -> list[dict[str, Any]]:
         sp_in = item.get("stock_prices")
         if not isinstance(sp_in, dict):
             sp_in = {}
-        stock_prices = {c: round(float(sp_in.get(c, 1.00)), 2) for c in commodities}
+        stock_prices = {c: round(float(sp_in.get(c, 1.00)), 2) for c in COMMODITIES}
         pn_in = item.get("player_net")
         player_net: dict[str, float] = {}
         if isinstance(pn_in, dict):
@@ -160,7 +160,7 @@ def _turn_count_from_saved_payload(data: dict) -> int:
 def _sync_dashboard_module_prices(prices: dict[str, float]) -> None:
     import callbacks.dashboard_callbacks as dc
 
-    dc.stock_prices = {c: prices[c] for c in commodities}
+    dc.stock_prices = {c: prices[c] for c in COMMODITIES}
 
 
 def _sync_dashboard_module_prices_to_server(server) -> None:
@@ -170,7 +170,7 @@ def _sync_dashboard_module_prices_to_server(server) -> None:
 
         if isinstance(getattr(dc, "stock_prices", None), dict):
             server.config["STOCK_PRICES"] = {
-                c: round(float(dc.stock_prices.get(c, 1.00)), 2) for c in commodities
+                c: round(float(dc.stock_prices.get(c, 1.00)), 2) for c in COMMODITIES
             }
     except Exception:
         pass
@@ -184,7 +184,7 @@ def _session_payload_is_empty_game_state(payload: dict[str, Any]) -> bool:
     sp = payload.get("stock_prices") or {}
     if not isinstance(sp, dict):
         return True
-    return all(round(float(sp.get(c, 1.0)), 2) == 1.0 for c in commodities)
+    return all(round(float(sp.get(c, 1.0)), 2) == 1.0 for c in COMMODITIES)
 
 
 def _would_clobber_saved_session_with_empty_runtime(
@@ -200,7 +200,7 @@ def _would_clobber_saved_session_with_empty_runtime(
         return True
     old_sp = existing_file.get("stock_prices") or {}
     if isinstance(old_sp, dict):
-        for c in commodities:
+        for c in COMMODITIES:
             if round(float(old_sp.get(c, 1.0)), 2) != 1.0:
                 return True
     return False

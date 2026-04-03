@@ -1,9 +1,9 @@
 from dash import dcc, html, register_page, dash_table
-from constants import commodities, user_starting_balance
+from constants import COMMODITIES, USER_STARTING_BALANCE
 
-user_stocks = {commodity: 0 for commodity in commodities}
-user_balance = user_starting_balance
-stock_prices = {commodity: 1.00 for commodity in commodities}
+user_stocks = {commodity: 0 for commodity in COMMODITIES}
+user_balance = USER_STARTING_BALANCE
+stock_prices = {commodity: 1.00 for commodity in COMMODITIES}
 
 register_page(__name__, path="/user")
 

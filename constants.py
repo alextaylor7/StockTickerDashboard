@@ -1,6 +1,8 @@
-commodities = ["Gold", "Silver", "Bonds", "Oil", "Industrials", "Grain"]
-user_starting_balance = 5000
+# --- Game rules ---
+COMMODITIES = ["Gold", "Silver", "Bonds", "Oil", "Industrials", "Grain"]
+USER_STARTING_BALANCE = 5000
 
+# --- Server / polling ---
 # Default length of a game in turns (current turn label 1..N; ends when TURN_COUNT > N).
 DEFAULT_GAME_MAX_TURNS = 52
 
@@ -14,6 +16,7 @@ WAITRESS_THREADS = 16
 # Delay before writing session after a trade burst (debounced disk save).
 SESSION_SAVE_DEBOUNCE_SEC = 0.75
 
+# --- Chart theme ---
 # Dashboard bar chart: one RGB color per commodity (Plotly rgb strings)
 COMMODITY_BAR_COLORS = {
     "Gold": "rgb(233,184,81)",

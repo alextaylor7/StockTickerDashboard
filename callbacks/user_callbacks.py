@@ -3,7 +3,7 @@ import dash
 from dash import Input, Output, State, no_update
 
 from callbacks.app_ref import callback
-from constants import commodities, user_starting_balance
+from constants import COMMODITIES, USER_STARTING_BALANCE
 
 ANONYMOUS_USER_KEY = "__anonymous__"
 
@@ -51,33 +51,33 @@ def _parse_username(search):
 
 def _default_user_state():
     return {
-        "balance": float(user_starting_balance),
-        "stocks": {commodity: 0 for commodity in commodities}
+        "balance": float(USER_STARTING_BALANCE),
+        "stocks": {commodity: 0 for commodity in COMMODITIES}
     }
 
 
 def _normalize_user_state(user_state):
-    normalized_stocks = {commodity: 0 for commodity in commodities}
-    for commodity in commodities:
+    normalized_stocks = {commodity: 0 for commodity in COMMODITIES}
+    for commodity in COMMODITIES:
         normalized_stocks[commodity] = int(user_state.get("stocks", {}).get(commodity, 0))
 
     return {
-        "balance": round(float(user_state.get("balance", user_starting_balance)), 2),
+        "balance": round(float(user_state.get("balance", USER_STARTING_BALANCE)), 2),
         "stocks": normalized_stocks
     }
 
 
 def _get_stock_prices():
     stored_prices = dash.get_app().server.config.get("STOCK_PRICES", {})
-    return {commodity: round(float(stored_prices.get(commodity, 1.00)), 2) for commodity in commodities}
+    return {commodity: round(float(stored_prices.get(commodity, 1.00)), 2) for commodity in COMMODITIES}
 
 
 def _to_table_data(stocks):
-    return [{"Commodity": commodity, "Shares": stocks.get(commodity, 0)} for commodity in commodities]
+    return [{"Commodity": commodity, "Shares": stocks.get(commodity, 0)} for commodity in COMMODITIES]
 
 
 def _net_value(balance, stocks, stock_prices):
-    holdings_value = sum(stocks.get(commodity, 0) * stock_prices.get(commodity, 1.00) for commodity in commodities)
+    holdings_value = sum(stocks.get(commodity, 0) * stock_prices.get(commodity, 1.00) for commodity in COMMODITIES)
     return round(balance + holdings_value, 2)
 
 

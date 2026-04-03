@@ -10,16 +10,16 @@ import plotly.graph_objects as go
 from constants import (
     CHART_BG,
     CHART_TEXT,
+    COMMODITIES,
     COMMODITY_BAR_COLORS,
     COMMODITY_TIMELINE_LINE_COLORS,
-    commodities,
 )
 
 
-def _dashboard_table_rows(stock_prices_dict: dict, baseline_prices: dict | None = None) -> list[dict]:
+def dashboard_table_rows(stock_prices_dict: dict, baseline_prices: dict | None = None) -> list[dict]:
     """Table shows Price as value×100 and ChangeThisTurn vs baseline (×100); storage stays in dollars."""
     if baseline_prices is None:
-        baseline_prices = {c: round(1.00, 2) for c in commodities}
+        baseline_prices = {c: round(1.00, 2) for c in COMMODITIES}
     rows: list[dict] = []
     for k, v in stock_prices_dict.items():
         cur = int(round(float(v) * 100))
@@ -79,9 +79,9 @@ def _ols_slope_intercept(xs: list[float], ys: list[float]) -> tuple[float, float
 
 
 def build_stock_graph_figure(stock_prices_dict):
-    x = list(commodities)
-    y = [stock_prices_dict[c] * 100 for c in commodities]
-    colors = [COMMODITY_BAR_COLORS[c] for c in commodities]
+    x = list(COMMODITIES)
+    y = [stock_prices_dict[c] * 100 for c in COMMODITIES]
+    colors = [COMMODITY_BAR_COLORS[c] for c in COMMODITIES]
     fig = go.Figure()
     fig.add_trace(
         go.Bar(
@@ -152,7 +152,7 @@ def build_commodity_timeline_figure(timeline: list) -> go.Figure:
         return fig
 
     turns = [p["turn"] for p in timeline if isinstance(p, dict)]
-    for c in commodities:
+    for c in COMMODITIES:
         ys = []
         for p in timeline:
             if not isinstance(p, dict):
@@ -185,7 +185,7 @@ def build_commodity_timeline_figure(timeline: list) -> go.Figure:
         sp = p.get("stock_prices") if isinstance(p.get("stock_prices"), dict) else {}
         row_vals: list[float] = []
         skip = False
-        for c in commodities:
+        for c in COMMODITIES:
             raw = sp.get(c)
             if raw is None:
                 skip = True

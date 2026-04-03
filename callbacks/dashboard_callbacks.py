@@ -5,10 +5,10 @@ from dash import Input, Output, State, no_update, set_props, ALL, html
 
 from callbacks.app_ref import callback
 import random
-from constants import commodities, user_starting_balance
+from constants import COMMODITIES, USER_STARTING_BALANCE
 
 from dashboard_charts import (
-    _dashboard_table_rows,
+    dashboard_table_rows,
     build_commodity_timeline_figure,
     build_player_net_timeline_figure,
     build_stock_graph_figure,
@@ -27,32 +27,32 @@ from callbacks.user_callbacks import (
 )
 
 # Initialize stock prices with default values
-stock_prices = {commodity: 1.00 for commodity in commodities}
+stock_prices = {commodity: 1.00 for commodity in COMMODITIES}
 
 
 def _turn_baseline_stock_prices(server) -> dict:
     """Dollar prices at end of last completed turn; par $1.00 when timeline is empty."""
     tl = server.config.get("TURN_TIMELINE")
     if not isinstance(tl, list) or len(tl) == 0:
-        return {c: round(1.00, 2) for c in commodities}
+        return {c: round(1.00, 2) for c in COMMODITIES}
     last = tl[-1]
     if not isinstance(last, dict):
-        return {c: round(1.00, 2) for c in commodities}
+        return {c: round(1.00, 2) for c in COMMODITIES}
     sp = last.get("stock_prices")
     if not isinstance(sp, dict):
-        return {c: round(1.00, 2) for c in commodities}
-    return {c: round(float(sp.get(c, 1.00)), 2) for c in commodities}
+        return {c: round(1.00, 2) for c in COMMODITIES}
+    return {c: round(float(sp.get(c, 1.00)), 2) for c in COMMODITIES}
 
 
 def _turn_zero_timeline_entry(server):
     """Starting snapshot: par prices, each named player at starting balance and zero shares."""
-    par_prices = {c: round(1.00, 2) for c in commodities}
-    zero_stocks = {c: 0 for c in commodities}
+    par_prices = {c: round(1.00, 2) for c in COMMODITIES}
+    zero_stocks = {c: 0 for c in COMMODITIES}
     user_state = server.config.get("USER_STATE") or {}
     player_net: dict[str, float] = {}
     for name in named_player_names(user_state):
         player_net[name] = _net_value(
-            float(user_starting_balance),
+            float(USER_STARTING_BALANCE),
             zero_stocks,
             par_prices,
         )
@@ -73,7 +73,7 @@ def _timeline_for_figures(server):
 
 
 def roll_dice():
-    stock = random.choice(commodities)
+    stock = random.choice(COMMODITIES)
     action = random.choice(["Up", "Down", "Dividend"])
     value = random.choice([0.05, 0.10, 0.20])
     return stock, action, value
@@ -125,7 +125,7 @@ def _roll_once_outputs():
     rolls.append({"commodity": stock, "action": action, "value": value_str})
     _apply_one_roll(stock, action, value)
     fig = build_stock_graph_figure(stock_prices)
-    return _dashboard_table_rows(stock_prices, _turn_baseline_stock_prices(server)), fig
+    return dashboard_table_rows(stock_prices, _turn_baseline_stock_prices(server)), fig
 
 
 def _player_roll_count() -> int:
@@ -164,9 +164,9 @@ def _append_turn_timeline_snapshot():
     completed_turn = int(server.config.get("TURN_COUNT", 1))
     stored = server.config.get("STOCK_PRICES")
     if isinstance(stored, dict):
-        prices = {c: round(float(stored.get(c, 1.00)), 2) for c in commodities}
+        prices = {c: round(float(stored.get(c, 1.00)), 2) for c in COMMODITIES}
     else:
-        prices = {c: round(float(stock_prices.get(c, 1.00)), 2) for c in commodities}
+        prices = {c: round(float(stock_prices.get(c, 1.00)), 2) for c in COMMODITIES}
 
     user_state = server.config.get("USER_STATE") or {}
     player_net: dict[str, float] = {}
@@ -253,7 +253,7 @@ def _hydrate_dashboard_from_server():
     stored_prices = dash.get_app().server.config.get("STOCK_PRICES")
     if isinstance(stored_prices, dict):
         stock_prices = {
-            commodity: round(float(stored_prices.get(commodity, 1.00)), 2) for commodity in commodities
+            commodity: round(float(stored_prices.get(commodity, 1.00)), 2) for commodity in COMMODITIES
         }
     else:
         stock_prices = {commodity: round(price, 2) for commodity, price in stock_prices.items()}
@@ -269,7 +269,7 @@ def _hydrate_dashboard_from_server():
     set_props("turn-roll-interval", {"interval": ms})
     server = dash.get_app().server
     return (
-        _dashboard_table_rows(stock_prices, _turn_baseline_stock_prices(server)),
+        dashboard_table_rows(stock_prices, _turn_baseline_stock_prices(server)),
         fig,
         None,
         True,
