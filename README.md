@@ -178,10 +178,3 @@ Tag example:
 git tag v1.0.0
 git push origin v1.0.0
 ```
-
-## Notes / limitations
-
-- App state is kept in server memory during runtime (`server.config`) and saved to JSON on shutdown and after trades (buy/sell/add cash writes are **debounced** briefly to reduce disk contention when many players trade at once).
-- For source runs (`python main.py`), session data is written under `data/session_state.json` in the project directory.
-- For executable runs, session data is written under the executable folder (`dist/StockTickerDashboard/data/session_state.json`).
-- If you run multiple **worker** processes (e.g. Gunicorn `workers > 1`), each worker has separate in-memory state; this app expects **one** process. Use a shared database if you ever shard workers.
