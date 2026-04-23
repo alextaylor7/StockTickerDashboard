@@ -5,6 +5,7 @@ from dash import Input, Output, State, no_update
 
 from callbacks.app_ref import callback
 from constants import COMMODITIES
+from domain.market_surge import record_trade
 from domain.user_state import (
     ANONYMOUS_USER_KEY,
     default_user_state,
@@ -166,10 +167,12 @@ def handle_user_actions(
             if transaction_type == "buy" and current_state["balance"] >= cost:
                 current_state["stocks"][stock] += amount
                 current_state["balance"] = round(current_state["balance"] - cost, 2)
+                record_trade(dash.get_app().server, user_key, stock, amount)
                 message = f"Bought {amount} shares of {stock} for ${cost:.2f}"
             elif transaction_type == "sell" and current_state["stocks"][stock] >= amount:
                 current_state["stocks"][stock] -= amount
                 current_state["balance"] = round(current_state["balance"] + cost, 2)
+                record_trade(dash.get_app().server, user_key, stock, -amount)
                 message = f"Sold {amount} shares of {stock} for ${cost:.2f}"
 
     all_users[user_key] = current_state

@@ -172,6 +172,23 @@ def build_settings_modal():
                     ),
                     html.Div(
                         [
+                            dcc.Checklist(
+                                id="market-surge-checkbox",
+                                options=[{"label": "Market Surge", "value": "enabled"}],
+                                value=[],
+                                inputStyle={"marginRight": "8px"},
+                                labelStyle={
+                                    "fontWeight": "600",
+                                    "fontSize": "clamp(0.95rem, 2vw, 1.05rem)",
+                                    "color": "#1a1a1a",
+                                    "cursor": "pointer",
+                                },
+                                style={"marginBottom": "22px"},
+                            ),
+                        ]
+                    ),
+                    html.Div(
+                        [
                             html.Button(
                                 "Apply",
                                 id="settings-apply-btn",
