@@ -5,7 +5,7 @@ from domain.user_state import ANONYMOUS_USER_KEY
 
 """
 directionBias: strength * 45%
-20Bias: strength * 75%
+20Bias: strength * 60%
 
 strength: 0-1: net flow (buy - sell) and amount of players joined in
 	trade pressure x player participation
@@ -17,8 +17,8 @@ strength: 0-1: net flow (buy - sell) and amount of players joined in
 MIN_UNITS_FOR_FULL_STRENGTH = 5000
 # Participation uses this floor for small games; for larger games we use total named players.
 MIN_PLAYERS_PARTICIPATION_DENOMINATOR = 3
-MAX_DIRECTION_BIAS = 0.75
-MAX_VALUE_20_BIAS = 0.75
+MAX_DIRECTION_BIAS = 0.45
+MAX_VALUE_20_BIAS = 0.60
 
 ROLL_VALUES = (0.05, 0.10, 0.20)
 
