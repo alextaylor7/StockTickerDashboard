@@ -3,6 +3,17 @@ import random
 from constants import COMMODITIES
 from domain.user_state import ANONYMOUS_USER_KEY
 
+"""
+directionBias: strength * 45%
+20Bias: strength * 75%
+
+strength: 0-1: net flow (buy - sell) and amount of players joined in
+	trade pressure x player participation
+	(net buy/sell)/(max(5000,total stock in play) x (players trading in stock)/(max(3,total players))
+
+
+"""
+
 MIN_UNITS_FOR_FULL_STRENGTH = 5000
 # Participation uses this floor for small games; for larger games we use total named players.
 MIN_PLAYERS_PARTICIPATION_DENOMINATOR = 3
