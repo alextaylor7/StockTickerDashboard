@@ -161,6 +161,18 @@ Session persistence location for the executable build:
 
 To run on another Windows computer, copy the entire `dist/StockTickerDashboard` folder and run `StockTickerDashboard.exe` there.
 
+## Market Surge
+
+direction bias: strength * 45%
+
+20 bias: strength * 60%
+
+strength: 0-1: net flow (buy - sell) and amount of players joined in
+- trade pressure x player participation
+- (net buy/sell)/(max(5000,total stock in play) x (players trading in stock)/(max(3,total players))
+
+
+
 ## GitHub Actions release build
 
 This repo now supports automated Windows executable releases via GitHub Actions.
