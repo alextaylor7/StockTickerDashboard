@@ -13,6 +13,12 @@ from dashboard_charts import (
     build_stock_graph_figure,
 )
 from domain.dice import roll_dice
+from domain.market_surge import (
+    ensure_market_surge_config,
+    maybe_bias_roll,
+    normalize_market_surge_enabled,
+    rotate_turn_state,
+)
 from domain.roll_effects import apply_roll_to_state
 from domain.timeline import timeline_for_figures, turn_baseline_stock_prices
 from domain.user_state import (
@@ -45,16 +51,19 @@ def _timeline_for_figures(server):
 def _apply_one_roll(stock, action, value):
     """Apply one dice outcome to live_prices, USER_STATE, and server.config; persist."""
     server = dash.get_app().server
+    action, value = maybe_bias_roll(server, stock, action, value)
     user_state = server.config.setdefault("USER_STATE", {})
     apply_roll_to_state(live_prices, user_state, stock, action, value)
     server.config["STOCK_PRICES"] = {
         c: round(float(live_prices.get(c, 1.00)), 2) for c in COMMODITIES
     }
     save_session(dash.get_app())
+    return action, value
 
 
 def _roll_once_outputs():
     stock, action, value = roll_dice()
+    action, value = _apply_one_roll(stock, action, value)
     value_str = str(int(round(value * 100)))
     server = dash.get_app().server
     rolls = server.config.setdefault("CURRENT_TURN_ROLLS", [])
@@ -62,7 +71,6 @@ def _roll_once_outputs():
         rolls = []
         server.config["CURRENT_TURN_ROLLS"] = rolls
     rolls.append({"commodity": stock, "action": action, "value": value_str})
-    _apply_one_roll(stock, action, value)
     fig = build_stock_graph_figure(live_prices)
     return dashboard_table_rows(live_prices, _turn_baseline_stock_prices(server)), fig
 
@@ -141,6 +149,7 @@ def _increment_turn_and_save():
         if isinstance(r, dict)
     ]
     server.config["CURRENT_TURN_ROLLS"] = []
+    rotate_turn_state(server)
     _append_turn_timeline_snapshot()
     server.config["TURN_COUNT"] = int(server.config.get("TURN_COUNT", 1)) + 1
     save_session(dash.get_app())
@@ -317,6 +326,7 @@ def _build_players_modal_list_children():
     Output("settings-modal", "style"),
     Output("turn-roll-sec-input", "value"),
     Output("game-max-turns-input", "value"),
+    Output("market-surge-checkbox", "value"),
     [
         Input("settings-gear-btn", "n_clicks"),
         Input("settings-modal-backdrop-btn", "n_clicks"),
@@ -328,6 +338,7 @@ def _build_players_modal_list_children():
     ],
     State("turn-roll-sec-input", "value"),
     State("game-max-turns-input", "value"),
+    State("market-surge-checkbox", "value"),
     prevent_initial_call=False,
 )
 def settings_modal_and_interval(
@@ -340,13 +351,14 @@ def settings_modal_and_interval(
     _initial_load,
     sec_input,
     max_turns_input,
+    market_surge_value,
 ):
     """Modal only. Do not Output turn-roll-interval.interval here — that resets the timer in Dash 3 and drops ticks."""
     ctx = dash.callback_context
     server = dash.get_app().server
     # Dashboard-only layout: never patch these outputs or set_props from other routes (breaks Dash 3 renderer).
     if not _pathname_is_dashboard(pathname):
-        return no_update, no_update, no_update
+        return no_update, no_update, no_update, no_update
 
     hid, vis = _HIDDEN_SETTINGS_MODAL_STYLE, _VISIBLE_SETTINGS_MODAL_STYLE
 
@@ -356,34 +368,42 @@ def settings_modal_and_interval(
     def max_turns_from_server() -> int:
         return _normalize_game_max_turns(server.config.get("GAME_MAX_TURNS"))
 
+    def market_surge_from_server() -> list[str]:
+        enabled = normalize_market_surge_enabled(server.config.get("MARKET_SURGE_ENABLED"))
+        return ["enabled"] if enabled else []
+
     trig = ctx.triggered_id
     if trig is None:
-        return hid, no_update, no_update
+        return hid, no_update, no_update, no_update
 
     if trig == "url":
-        return no_update, no_update, no_update
+        return no_update, no_update, no_update, no_update
 
     if trig in ("session-reload", "_initial_load"):
-        return no_update, no_update, no_update
+        ensure_market_surge_config(server)
+        return no_update, no_update, no_update, no_update
 
     if trig == "settings-gear-btn":
         s = sec_from_server()
         m = max_turns_from_server()
-        return vis, s, m
+        surge = market_surge_from_server()
+        return vis, s, m, surge
 
     if trig in ("settings-modal-backdrop-btn", "settings-modal-close-btn"):
-        return hid, no_update, no_update
+        return hid, no_update, no_update, no_update
 
     if trig == "settings-apply-btn":
         sec = _normalize_turn_roll_interval_sec(sec_input)
         max_t = _normalize_game_max_turns(max_turns_input)
+        surge_enabled = isinstance(market_surge_value, list) and "enabled" in market_surge_value
         server.config["TURN_ROLL_INTERVAL_SEC"] = sec
         server.config["GAME_MAX_TURNS"] = max_t
+        server.config["MARKET_SURGE_ENABLED"] = surge_enabled
         save_session(dash.get_app())
         set_props("turn-roll-interval", {"interval": sec * 1000})
-        return hid, sec, max_t
+        return hid, sec, max_t, (["enabled"] if surge_enabled else [])
 
-    return no_update, no_update, no_update
+    return no_update, no_update, no_update, no_update
 
 
 @callback(

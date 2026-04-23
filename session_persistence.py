@@ -12,6 +12,15 @@ from pathlib import Path
 from typing import Any
 
 from constants import COMMODITIES, DEFAULT_GAME_MAX_TURNS, SESSION_SAVE_DEBOUNCE_SEC
+from domain.market_surge import (
+    empty_flow_map,
+    empty_participant_count_map,
+    empty_participants_map,
+    normalize_flow_map,
+    normalize_market_surge_enabled,
+    normalize_participant_count_map,
+    normalize_participants_map,
+)
 from domain.user_state import normalize_user_state
 from runtime.live_stock_prices import live_prices, replace_live_prices
 
@@ -31,7 +40,8 @@ SESSION_PATH = _runtime_base_dir() / "data" / "session_state.json"
 # v4: optional turn_roll_interval_sec (integer seconds between dice rolls in a turn).
 # v5: optional current_turn_rolls / last_turn_rolls (dice feed; list of {commodity, action, value}).
 # v6: optional game_max_turns (end play when TURN_COUNT exceeds this).
-VERSION = 6
+# v7: optional market surge settings and per-turn surge state maps.
+VERSION = 7
 
 _app_ref: Any = None
 
@@ -230,6 +240,17 @@ def build_payload(server) -> dict[str, Any]:
     last_turn_rolls = _normalize_turn_roll_feed_list(server.config.get("LAST_TURN_ROLLS"))
 
     game_max_turns = _normalize_game_max_turns(server.config.get("GAME_MAX_TURNS"))
+    market_surge_enabled = normalize_market_surge_enabled(
+        server.config.get("MARKET_SURGE_ENABLED")
+    )
+    turn_net_flow = normalize_flow_map(server.config.get("TURN_NET_FLOW"))
+    turn_stock_participants = normalize_participants_map(
+        server.config.get("TURN_STOCK_PARTICIPANTS")
+    )
+    next_turn_surge_flow = normalize_flow_map(server.config.get("NEXT_TURN_SURGE_FLOW"))
+    next_turn_surge_participant_count = normalize_participant_count_map(
+        server.config.get("NEXT_TURN_SURGE_PARTICIPANT_COUNT")
+    )
 
     return {
         "version": VERSION,
@@ -241,6 +262,11 @@ def build_payload(server) -> dict[str, Any]:
         "current_turn_rolls": current_turn_rolls,
         "last_turn_rolls": last_turn_rolls,
         "game_max_turns": game_max_turns,
+        "market_surge_enabled": market_surge_enabled,
+        "turn_net_flow": turn_net_flow,
+        "turn_stock_participants": turn_stock_participants,
+        "next_turn_surge_flow": next_turn_surge_flow,
+        "next_turn_surge_participant_count": next_turn_surge_participant_count,
     }
 
 
@@ -271,6 +297,11 @@ def apply_payload_to_server(server, data: Any) -> None:
         server.config["CURRENT_TURN_ROLLS"] = []
         server.config["LAST_TURN_ROLLS"] = []
         server.config["GAME_MAX_TURNS"] = _normalize_game_max_turns(None)
+        server.config["MARKET_SURGE_ENABLED"] = normalize_market_surge_enabled(None)
+        server.config["TURN_NET_FLOW"] = empty_flow_map()
+        server.config["TURN_STOCK_PARTICIPANTS"] = empty_participants_map()
+        server.config["NEXT_TURN_SURGE_FLOW"] = empty_flow_map()
+        server.config["NEXT_TURN_SURGE_PARTICIPANT_COUNT"] = empty_participant_count_map()
         _sync_live_prices_from_dict(server.config["STOCK_PRICES"])
         return
 
@@ -286,6 +317,17 @@ def apply_payload_to_server(server, data: Any) -> None:
     )
     server.config["LAST_TURN_ROLLS"] = _normalize_turn_roll_feed_list(data.get("last_turn_rolls"))
     server.config["GAME_MAX_TURNS"] = _normalize_game_max_turns(data.get("game_max_turns"))
+    server.config["MARKET_SURGE_ENABLED"] = normalize_market_surge_enabled(
+        data.get("market_surge_enabled")
+    )
+    server.config["TURN_NET_FLOW"] = normalize_flow_map(data.get("turn_net_flow"))
+    server.config["TURN_STOCK_PARTICIPANTS"] = normalize_participants_map(
+        data.get("turn_stock_participants")
+    )
+    server.config["NEXT_TURN_SURGE_FLOW"] = normalize_flow_map(data.get("next_turn_surge_flow"))
+    server.config["NEXT_TURN_SURGE_PARTICIPANT_COUNT"] = normalize_participant_count_map(
+        data.get("next_turn_surge_participant_count")
+    )
     _sync_live_prices_from_dict(server.config["STOCK_PRICES"])
 
 
@@ -369,6 +411,13 @@ def load_session(app=None, server=None) -> None:
         server.config.setdefault("CURRENT_TURN_ROLLS", [])
         server.config.setdefault("LAST_TURN_ROLLS", [])
         server.config.setdefault("GAME_MAX_TURNS", _normalize_game_max_turns(None))
+        server.config.setdefault("MARKET_SURGE_ENABLED", normalize_market_surge_enabled(None))
+        server.config.setdefault("TURN_NET_FLOW", empty_flow_map())
+        server.config.setdefault("TURN_STOCK_PARTICIPANTS", empty_participants_map())
+        server.config.setdefault("NEXT_TURN_SURGE_FLOW", empty_flow_map())
+        server.config.setdefault(
+            "NEXT_TURN_SURGE_PARTICIPANT_COUNT", empty_participant_count_map()
+        )
         _sync_live_prices_from_dict(server.config["STOCK_PRICES"])
         return
 
@@ -386,6 +435,13 @@ def load_session(app=None, server=None) -> None:
         server.config.setdefault("CURRENT_TURN_ROLLS", [])
         server.config.setdefault("LAST_TURN_ROLLS", [])
         server.config.setdefault("GAME_MAX_TURNS", _normalize_game_max_turns(None))
+        server.config.setdefault("MARKET_SURGE_ENABLED", normalize_market_surge_enabled(None))
+        server.config.setdefault("TURN_NET_FLOW", empty_flow_map())
+        server.config.setdefault("TURN_STOCK_PARTICIPANTS", empty_participants_map())
+        server.config.setdefault("NEXT_TURN_SURGE_FLOW", empty_flow_map())
+        server.config.setdefault(
+            "NEXT_TURN_SURGE_PARTICIPANT_COUNT", empty_participant_count_map()
+        )
         _sync_live_prices_from_dict(server.config["STOCK_PRICES"])
         return
 
