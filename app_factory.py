@@ -7,6 +7,15 @@ from callbacks.root_callbacks import register_root_callbacks
 from layout_root import build_root_layout
 from session_persistence import load_session, register_shutdown_handlers
 
+# PyInstaller misses some modules that Dash imports dynamically via `use_pages=True`.
+# Keep these explicit imports so frozen builds always include page dependencies.
+import components.dashboard_header  # noqa: F401
+import components.dashboard_main_row  # noqa: F401
+import components.dashboard_modals  # noqa: F401
+import components.dashboard_play_section  # noqa: F401
+import components.dashboard_timeline_row  # noqa: F401
+import dashboard_charts  # noqa: F401
+
 
 def create_app() -> Dash:
     app = Dash(
